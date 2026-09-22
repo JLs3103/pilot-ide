@@ -1,0 +1,41 @@
+.terminal-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-top: 1px solid #2a3546;
+    background: #0d1117;
+}
+
+.terminal-log {
+    flex: 1;
+    margin: 0;
+    padding: 8px 10px;
+    overflow: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    text-align: left;
+    white-space: pre-wrap;
+}
+
+.terminal-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-top: 1px solid #2a3546;
+}
+
+.terminal-input span {
+    color: #6fdf9f;
+    font-family: Consolas, "Courier New", monospace;
+}
+
+.terminal-input input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    outline: none;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+}

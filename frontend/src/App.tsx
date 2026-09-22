@@ -1,28 +1,77 @@
-import {useState} from 'react';
-import logo from './assets/images/logo-universal.png';
+import {useCallback, useEffect, useState} from 'react';
+import {ReadFile, WriteFile} from '../wailsjs/go/main/App';
+import {ChatPanel} from './components/ChatPanel';
+import {EditorPane} from './components/EditorPane';
+import {FileExplorer} from './components/FileExplorer';
+import {TerminalPanel} from './components/TerminalPanel';
 import './App.css';
-import {Greet} from "../wailsjs/go/main/App";
 
 function App() {
-    const [resultText, setResultText] = useState("Please enter your name below 👇");
-    const [name, setName] = useState('');
-    const updateName = (e: any) => setName(e.target.value);
-    const updateResultText = (result: string) => setResultText(result);
+    const [path, setPath] = useState<string | null>(null);
+    const [name, setName] = useState<string | null>(null);
+    const [value, setValue] = useState('');
+    const [saved, setSaved] = useState('');
+    const [status, setStatus] = useState('Open a project folder to start.');
 
-    function greet() {
-        Greet(name).then(updateResultText);
+    const dirty = path !== null && value !== saved;
+
+    async function openFile(nextPath: string, nextName: string) {
+        try {
+            const content = await ReadFile(nextPath);
+            setPath(nextPath);
+            setName(nextName);
+            setValue(content);
+            setSaved(content);
+            setStatus(nextPath);
+        } catch (err) {
+            setStatus(String(err));
+        }
     }
 
+    const save = useCallback(async () => {
+        if (!path || value === saved) {
+            return;
+        }
+        try {
+            await WriteFile(path, value);
+            setSaved(value);
+            setStatus(`Saved ${name}`);
+        } catch (err) {
+            setStatus(String(err));
+        }
+    }, [path, value, saved, name]);
+
+    useEffect(() => {
+        function onKey(event: KeyboardEvent) {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+                event.preventDefault();
+                void save();
+            }
+        }
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [save]);
+
     return (
-        <div id="App">
-            <img src={logo} id="logo" alt="logo"/>
-            <div id="result" className="result">{resultText}</div>
-            <div id="input" className="input-box">
-                <input id="name" className="input" onChange={updateName} autoComplete="off" name="input" type="text"/>
-                <button className="btn" onClick={greet}>Greet</button>
+        <div id="App" className="ide-shell">
+            <FileExplorer onOpenFile={(p, n) => void openFile(p, n)} activePath={path} />
+            <div className="ide-main">
+                <div className="ide-center">
+                    <EditorPane
+                        path={path}
+                        name={name}
+                        value={value}
+                        dirty={dirty}
+                        onChange={setValue}
+                        onSave={() => void save()}
+                    />
+                    <TerminalPanel />
+                </div>
+                <ChatPanel />
             </div>
+            <footer className="status-bar">{status}</footer>
         </div>
-    )
+    );
 }
 
-export default App
+export default App;

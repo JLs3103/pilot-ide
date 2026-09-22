@@ -1,0 +1,48 @@
+.explorer {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid #2a3546;
+    background: #121821;
+}
+
+.explorer-root {
+    padding: 6px 10px 8px;
+    font-size: 11px;
+    color: #9aa8bb;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.explorer-tree {
+    overflow: auto;
+    flex: 1;
+}
+
+.tree-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font-size: 13px;
+    line-height: 24px;
+    cursor: pointer;
+}
+
+.tree-item:hover {
+    background: #243044;
+}
+
+.tree-item.active {
+    background: #2b4d78;
+}
+
+.tree-glyph {
+    width: 12px;
+    color: #8ea0b5;
+}
