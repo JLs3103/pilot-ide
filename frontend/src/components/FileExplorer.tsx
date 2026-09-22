@@ -1,5 +1,6 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {GetProjectRoot, ListDir, OpenProject} from '../../wailsjs/go/main/App';
+import {EventsOn} from '../../wailsjs/runtime/runtime';
 import type {DirEntry} from '../types';
 import './FileExplorer.css';
 
@@ -22,8 +23,13 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
     const [root, setRoot] = useState('');
     const [nodes, setNodes] = useState<NodeState[]>([]);
     const [error, setError] = useState('');
+    const nodesRef = useRef<NodeState[]>([]);
+    const rootRef = useRef('');
 
-    const loadRoot = useCallback(async (path: string) => {
+    nodesRef.current = nodes;
+    rootRef.current = root;
+
+    const loadRoot = useCallback(async (path: string, expandedPaths: string[] = []) => {
         setRoot(path);
         if (!path) {
             setNodes([]);
@@ -31,7 +37,8 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
         }
         try {
             const entries = await ListDir('');
-            setNodes(entries.map((entry) => ({entry})));
+            const next = await hydrate(entries.map((entry) => ({entry})), expandedPaths);
+            setNodes(next);
             setError('');
         } catch (err) {
             setError(String(err));
@@ -44,6 +51,16 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
                 void loadRoot(path);
             }
         });
+    }, [loadRoot]);
+
+    useEffect(() => {
+        const off = EventsOn('fs:changed', () => {
+            if (!rootRef.current) {
+                return;
+            }
+            void loadRoot(rootRef.current, collectExpanded(nodesRef.current));
+        });
+        return () => off();
     }, [loadRoot]);
 
     async function openFolder() {
@@ -102,6 +119,38 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
             </div>
         </aside>
     );
+}
+
+async function hydrate(nodes: NodeState[], expandedPaths: string[]): Promise<NodeState[]> {
+    const wanted = new Set(expandedPaths);
+    for (const node of nodes) {
+        if (!isDirectory(node.entry) || !wanted.has(node.entry.path)) {
+            continue;
+        }
+        try {
+            node.children = (await ListDir(node.entry.path)).map((entry) => ({entry}));
+            node.expanded = true;
+            if (node.children.length) {
+                node.children = await hydrate(node.children, expandedPaths);
+            }
+        } catch {
+            node.expanded = false;
+        }
+    }
+    return nodes;
+}
+
+function collectExpanded(nodes: NodeState[]): string[] {
+    const out: string[] = [];
+    for (const node of nodes) {
+        if (node.expanded && isDirectory(node.entry)) {
+            out.push(node.entry.path);
+            if (node.children) {
+                out.push(...collectExpanded(node.children));
+            }
+        }
+    }
+    return out;
 }
 
 function getNode(nodes: NodeState[], indexPath: number[]): NodeState | undefined {

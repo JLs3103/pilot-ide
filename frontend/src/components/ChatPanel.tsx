@@ -1,12 +1,19 @@
 import {FormEvent, useEffect, useRef, useState} from 'react';
-import {Chat, ClearChat, GetAIStatus, SetAIMode, SetGeminiAPIKey} from '../../wailsjs/go/main/App';
-import type {AIStatus} from '../types';
+import {Chat, ClearChat, GetAIStatus, GetChatHistory, SetAIMode, SetGeminiAPIKey} from '../../wailsjs/go/main/App';
+import {EventsOn} from '../../wailsjs/runtime/runtime';
+import type {AIStatus, ToolAction} from '../types';
 import './ChatPanel.css';
 
 type Message = {
-    role: 'system' | 'user' | 'assistant' | 'error';
+    role: 'system' | 'user' | 'assistant' | 'error' | 'tool';
     text: string;
 };
+
+function formatAction(action: ToolAction) {
+    const status = action.ok ? 'ok' : 'fail';
+    const extra = action.error ? ` — ${action.error}` : '';
+    return `${action.name} ${action.detail} [${status}]${extra}`;
+}
 
 export function ChatPanel() {
     const [status, setStatus] = useState<AIStatus | null>(null);
@@ -14,24 +21,50 @@ export function ChatPanel() {
     const [draft, setDraft] = useState('');
     const [keyDraft, setKeyDraft] = useState('');
     const [busy, setBusy] = useState(false);
+    const [busyLabel, setBusyLabel] = useState('Thinking…');
     const [keySaved, setKeySaved] = useState(false);
     const logRef = useRef<HTMLDivElement>(null);
+    const toolCountRef = useRef(0);
 
     async function refreshStatus() {
         const next = await GetAIStatus() as AIStatus;
         setStatus(next);
+        if (next.hasGeminiKey) {
+            setKeySaved(true);
+        }
         return next;
     }
 
     useEffect(() => {
-        void refreshStatus().then((next) => {
-            setMessages([{
+        void (async () => {
+            const next = await refreshStatus();
+            const history = await GetChatHistory();
+            const restored = (history ?? [])
+                .filter((m) => m.role === 'user' || m.role === 'assistant')
+                .map((m) => ({role: m.role as 'user' | 'assistant', text: m.content}));
+            const intro: Message = {
                 role: 'system',
-                text: next.ollamaUp
-                    ? `Dual-Brain siap. Mode default: Local (${next.localModel}).`
-                    : `Mode Local membutuhkan Ollama di ${next.ollamaURL}. Cloud memakai Gemini ${next.cloudModel} + API key.`,
-            }]);
+                text: restored.length
+                    ? `Pengaturan dipulihkan dari SQLite. Mode: ${next.mode}. ${next.hasGeminiKey ? 'API key tersimpan di perangkat ini.' : 'API key Gemini belum tersimpan.'}`
+                    : (next.ollamaUp
+                        ? `Dual-Brain siap. Mode: ${next.mode} (${next.mode === 'cloud' ? next.cloudModel : next.localModel}).`
+                        : `Mode Local membutuhkan Ollama di ${next.ollamaURL}. Cloud memakai Gemini ${next.cloudModel} + API key.`),
+            };
+            setMessages([intro, ...restored]);
+        })();
+    }, []);
+
+    useEffect(() => {
+        const off = EventsOn('agent:tool', (...data: unknown[]) => {
+            const raw = data[0] as ToolAction | undefined;
+            if (!raw?.name) {
+                return;
+            }
+            setBusyLabel(`${raw.name} ${raw.detail || ''}`.trim());
+            toolCountRef.current += 1;
+            setMessages((prev) => [...prev, {role: 'tool', text: formatAction(raw)}]);
         });
+        return () => off();
     }, []);
 
     useEffect(() => {
@@ -39,7 +72,7 @@ export function ChatPanel() {
         if (el) {
             el.scrollTop = el.scrollHeight;
         }
-    }, [messages, busy]);
+    }, [messages, busy, busyLabel]);
 
     async function changeMode(mode: string) {
         const applied = await SetAIMode(mode);
@@ -49,7 +82,7 @@ export function ChatPanel() {
             {
                 role: 'system',
                 text: applied === 'cloud'
-                    ? `Mode Cloud: ${next.cloudModel}. ${next.hasGeminiKey ? 'API key tersimpan di sesi ini.' : 'Masukkan API key lalu Save.'}`
+                    ? `Mode Cloud: ${next.cloudModel}. ${next.hasGeminiKey ? 'API key tersimpan di perangkat ini.' : 'Masukkan API key lalu Save.'}`
                     : `Mode Local: ${next.localModel}. Ollama ${next.ollamaUp ? 'terhubung' : 'tidak terdeteksi'}.`,
             },
         ]);
@@ -74,14 +107,24 @@ export function ChatPanel() {
         }
         setDraft('');
         setBusy(true);
+        setBusyLabel('Thinking…');
+        toolCountRef.current = 0;
         setMessages((prev) => [...prev, {role: 'user', text}]);
         try {
             const reply = await Chat(text);
-            setMessages((prev) => [...prev, {role: 'assistant', text: reply.text || '(empty)'}]);
+            const extras = toolCountRef.current === 0
+                ? (reply.actions ?? []).map((action) => ({role: 'tool' as const, text: formatAction(action)}))
+                : [];
+            setMessages((prev) => [
+                ...prev,
+                ...extras,
+                {role: 'assistant', text: reply.text || '(empty)'},
+            ]);
         } catch (err) {
             setMessages((prev) => [...prev, {role: 'error', text: String(err)}]);
         } finally {
             setBusy(false);
+            setBusyLabel('Thinking…');
         }
     }
 
@@ -121,19 +164,19 @@ export function ChatPanel() {
                             setKeyDraft(e.target.value);
                             setKeySaved(false);
                         }}
-                        placeholder={status?.hasGeminiKey ? 'Key saved this session' : 'Gemini API key'}
+                        placeholder={status?.hasGeminiKey ? 'Key saved on this device' : 'Gemini API key'}
                         autoComplete="off"
                         spellCheck={false}
                     />
                     <button type="button" onClick={() => void saveKey()} disabled={!keyDraft.trim()}>Save</button>
                 </div>
             ) : null}
-            {keySaved && mode === 'cloud' ? <div className="agent-hint">API key disimpan di memori sesi (belum SQLite).</div> : null}
+            {keySaved && mode === 'cloud' ? <div className="agent-hint">API key dienkripsi di SQLite lokal (bukan hanya sesi).</div> : null}
             <div className="chat-log" ref={logRef}>
                 {messages.map((msg, i) => (
                     <div key={i} className={`chat-bubble ${msg.role}`}>{msg.text}</div>
                 ))}
-                {busy ? <div className="chat-bubble system">Thinking…</div> : null}
+                {busy ? <div className="chat-bubble system">{busyLabel}</div> : null}
             </div>
             <form className="chat-input" onSubmit={(e) => void send(e)}>
                 <textarea

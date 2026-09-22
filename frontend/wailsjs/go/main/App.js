@@ -14,6 +14,10 @@ export function GetAIStatus() {
   return window['go']['main']['App']['GetAIStatus']();
 }
 
+export function GetChatHistory() {
+  return window['go']['main']['App']['GetChatHistory']();
+}
+
 export function GetProjectRoot() {
   return window['go']['main']['App']['GetProjectRoot']();
 }

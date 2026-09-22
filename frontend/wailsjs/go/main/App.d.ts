@@ -10,6 +10,8 @@ export function ClearChat():Promise<void>;
 
 export function GetAIStatus():Promise<ai.Status>;
 
+export function GetChatHistory():Promise<Array<ai.Message>>;
+
 export function GetProjectRoot():Promise<string>;
 
 export function ListDir(arg1:string):Promise<Array<fsutil.DirEntry>>;

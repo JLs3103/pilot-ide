@@ -23,4 +23,12 @@ export type ChatReply = {
     text: string;
     mode: string;
     model: string;
+    actions?: ToolAction[];
+};
+
+export type ToolAction = {
+    name: string;
+    detail: string;
+    ok: boolean;
+    error?: string;
 };

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"pilot-ide/internal/agent"
 )
 
 const (
@@ -21,9 +23,10 @@ type Message struct {
 }
 
 type Reply struct {
-	Text  string `json:"text"`
-	Mode  string `json:"mode"`
-	Model string `json:"model"`
+	Text    string         `json:"text"`
+	Mode    string         `json:"mode"`
+	Model   string         `json:"model"`
+	Actions []agent.Action `json:"actions,omitempty"`
 }
 
 type Status struct {
@@ -58,8 +61,10 @@ func SystemPrompt(projectRoot, tree string) string {
 	var b strings.Builder
 	b.WriteString("You are the coding agent inside Pilot IDE, a local desktop editor.\n")
 	b.WriteString("Answer in the user's language. Be concise and practical.\n")
-	b.WriteString("You can see the project tree (names only, not file contents). Do not invent files that are not listed.\n")
-	b.WriteString("Function calling / applying edits is not enabled yet; describe the change clearly so the user can apply it.\n")
+	b.WriteString("You can inspect and change the opened project using tools: list_dir, read_file, write_file, delete_file, map_project_tree, run_command.\n")
+	b.WriteString("Prefer tools over guessing file contents. Stay inside the project folder. Do not invent files that are not listed.\n")
+	b.WriteString("delete_file only removes a single file, never a directory. run_command is blocked if the command looks destructive.\n")
+	b.WriteString("When you need a tool, the runtime will execute it. Do not paste tool JSON as the final chat answer.\n")
 	if projectRoot != "" {
 		b.WriteString("\nProject root: ")
 		b.WriteString(projectRoot)

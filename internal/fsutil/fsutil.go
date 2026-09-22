@@ -50,10 +50,7 @@ func Resolve(root, target string) (string, error) {
 		return "", err
 	}
 	rel, err := filepath.Rel(absRoot, absTarget)
-	if err != nil {
-		return "", err
-	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		return "", fmt.Errorf("path is outside the project folder")
 	}
 	return absTarget, nil
@@ -116,6 +113,21 @@ func WriteFile(root, path, content string) error {
 		return err
 	}
 	return os.WriteFile(abs, []byte(content), 0o644)
+}
+
+func DeleteFile(root, path string) error {
+	abs, err := Resolve(root, path)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return fmt.Errorf("refusing to delete a directory")
+	}
+	return os.Remove(abs)
 }
 
 func MapTree(root string, maxDepth int) (TreeNode, error) {

@@ -91,9 +91,11 @@
     color: #d5eadc;
 }
 
-.chat-bubble.error {
-    background: #4a2428;
-    color: #ffc4c4;
+.chat-bubble.tool {
+    background: #2a2618;
+    color: #ecd9a4;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
 }
 
 .chat-input {

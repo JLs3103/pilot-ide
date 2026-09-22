@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
+	"pilot-ide/internal/agent"
 	"pilot-ide/internal/ai"
 	"pilot-ide/internal/fsutil"
+	"pilot-ide/internal/store"
 	"pilot-ide/internal/terminal"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -18,6 +21,7 @@ const maxChatHistory = 16
 type App struct {
 	ctx         context.Context
 	projectRoot string
+	store       *store.Store
 
 	mu          sync.Mutex
 	mode        string
@@ -31,6 +35,44 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	path, err := store.DefaultPath()
+	if err != nil {
+		runtime.LogError(ctx, "store path: "+err.Error())
+		return
+	}
+	db, err := store.Open(path)
+	if err != nil {
+		runtime.LogError(ctx, "open store: "+err.Error())
+		return
+	}
+	a.store = db
+	snap, err := db.Load()
+	if err != nil {
+		runtime.LogError(ctx, "load store: "+err.Error())
+		return
+	}
+	a.mu.Lock()
+	if snap.Mode != "" {
+		a.mode = ai.NormalizeMode(snap.Mode)
+	}
+	a.geminiKey = snap.GeminiKey
+	a.chatHistory = snap.Messages
+	if len(a.chatHistory) > maxChatHistory {
+		a.chatHistory = a.chatHistory[len(a.chatHistory)-maxChatHistory:]
+	}
+	a.mu.Unlock()
+	if snap.ProjectRoot != "" {
+		if info, err := os.Stat(snap.ProjectRoot); err == nil && info.IsDir() {
+			a.projectRoot = snap.ProjectRoot
+			runtime.WindowSetTitle(ctx, "Pilot IDE — "+snap.ProjectRoot)
+		}
+	}
+}
+
+func (a *App) shutdown(_ context.Context) {
+	if a.store != nil {
+		_ = a.store.Close()
+	}
 }
 
 func (a *App) OpenProject() (string, error) {
@@ -45,6 +87,7 @@ func (a *App) OpenProject() (string, error) {
 	}
 	a.projectRoot = dir
 	runtime.WindowSetTitle(a.ctx, "Pilot IDE — "+dir)
+	a.persist(a.store.SaveProjectRoot(dir))
 	return dir, nil
 }
 
@@ -61,7 +104,11 @@ func (a *App) ReadFile(path string) (string, error) {
 }
 
 func (a *App) WriteFile(path, content string) error {
-	return fsutil.WriteFile(a.projectRoot, path, content)
+	if err := fsutil.WriteFile(a.projectRoot, path, content); err != nil {
+		return err
+	}
+	a.emitFSChanged()
+	return nil
 }
 
 func (a *App) MapProjectTree(maxDepth int) (fsutil.TreeNode, error) {
@@ -71,6 +118,9 @@ func (a *App) MapProjectTree(maxDepth int) (fsutil.TreeNode, error) {
 func (a *App) RunCommand(command, cwd string) (terminal.Result, error) {
 	if command == "" {
 		return terminal.Result{}, fmt.Errorf("command is empty")
+	}
+	if err := agent.RejectDangerousCommand(command); err != nil {
+		return terminal.Result{}, err
 	}
 	dir := cwd
 	if dir == "" {
@@ -107,19 +157,31 @@ func (a *App) SetAIMode(mode string) string {
 	a.mu.Lock()
 	a.mode = normalized
 	a.mu.Unlock()
+	a.persist(a.store.SaveMode(normalized))
 	return normalized
 }
 
 func (a *App) SetGeminiAPIKey(key string) {
+	trimmed := strings.TrimSpace(key)
+	a.mu.Lock()
+	a.geminiKey = trimmed
+	a.mu.Unlock()
+	a.persist(a.store.SaveGeminiKey(trimmed))
+}
+
+func (a *App) GetChatHistory() []ai.Message {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.geminiKey = strings.TrimSpace(key)
+	out := make([]ai.Message, len(a.chatHistory))
+	copy(out, a.chatHistory)
+	return out
 }
 
 func (a *App) ClearChat() {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	a.chatHistory = nil
+	a.mu.Unlock()
+	a.persist(a.store.ClearMessages())
 }
 
 func (a *App) Chat(message string) (ai.Reply, error) {
@@ -147,30 +209,46 @@ func (a *App) Chat(message string) (ai.Reply, error) {
 		ctx = context.Background()
 	}
 
-	var (
-		reply string
-		err   error
-		model string
-	)
-	switch mode {
-	case ai.ModeCloud:
-		model = ai.DefaultCloudModel
-		reply, err = ai.ChatGemini(ctx, key, model, system, history, text)
-	default:
-		mode = ai.ModeLocal
-		model = ai.DefaultLocalModel
-		reply, err = ai.ChatOllama(ctx, ai.OllamaBaseURL(), model, system, history, text)
-	}
+	reply, err := ai.Run(ctx, ai.RunRequest{
+		Mode:    mode,
+		APIKey:  key,
+		System:  system,
+		History: history,
+		User:    text,
+		Root:    root,
+		OnAction: func(action agent.Action) {
+			if a.ctx != nil {
+				runtime.EventsEmit(a.ctx, "agent:tool", action)
+			}
+			if action.OK && (action.Name == "write_file" || action.Name == "delete_file" || action.Name == "run_command") {
+				a.emitFSChanged()
+			}
+		},
+	})
 	if err != nil {
-		return ai.Reply{Mode: mode, Model: model}, err
+		return reply, err
 	}
 
 	a.mu.Lock()
-	a.chatHistory = append(a.chatHistory, ai.Message{Role: "user", Content: text}, ai.Message{Role: "assistant", Content: reply})
+	a.chatHistory = append(a.chatHistory, ai.Message{Role: "user", Content: text}, ai.Message{Role: "assistant", Content: reply.Text})
 	if len(a.chatHistory) > maxChatHistory {
 		a.chatHistory = a.chatHistory[len(a.chatHistory)-maxChatHistory:]
 	}
+	saved := append([]ai.Message(nil), a.chatHistory...)
 	a.mu.Unlock()
+	a.persist(a.store.ReplaceMessages(saved))
 
-	return ai.Reply{Text: reply, Mode: mode, Model: model}, nil
+	return reply, nil
+}
+
+func (a *App) emitFSChanged() {
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "fs:changed")
+	}
+}
+
+func (a *App) persist(err error) {
+	if err != nil && a.ctx != nil {
+		runtime.LogError(a.ctx, err.Error())
+	}
 }
