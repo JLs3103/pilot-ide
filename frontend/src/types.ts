@@ -9,3 +9,18 @@ export type CommandResult = {
     stderr: string;
     exitCode: number;
 };
+
+export type AIStatus = {
+    mode: string;
+    localModel: string;
+    cloudModel: string;
+    hasGeminiKey: boolean;
+    ollamaURL: string;
+    ollamaUp: boolean;
+};
+
+export type ChatReply = {
+    text: string;
+    mode: string;
+    model: string;
+};

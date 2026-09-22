@@ -167,3 +167,24 @@ func walkTree(abs, name string, depth, maxDepth int) (TreeNode, error) {
 	node.Children = children
 	return node, nil
 }
+
+func FormatTree(node TreeNode) string {
+	var b strings.Builder
+	writeTree(&b, node, "")
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func writeTree(b *strings.Builder, node TreeNode, indent string) {
+	marker := ""
+	if node.IsDir {
+		marker = "/"
+	}
+	b.WriteString(indent)
+	b.WriteString(node.Name)
+	b.WriteString(marker)
+	b.WriteByte('\n')
+	childIndent := indent + "  "
+	for _, child := range node.Children {
+		writeTree(b, child, childIndent)
+	}
+}

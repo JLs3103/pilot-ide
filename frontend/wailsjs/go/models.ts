@@ -1,3 +1,46 @@
+export namespace ai {
+	
+	export class Reply {
+	    text: string;
+	    mode: string;
+	    model: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Reply(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	        this.mode = source["mode"];
+	        this.model = source["model"];
+	    }
+	}
+	export class Status {
+	    mode: string;
+	    localModel: string;
+	    cloudModel: string;
+	    hasGeminiKey: boolean;
+	    ollamaURL: string;
+	    ollamaUp: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.localModel = source["localModel"];
+	        this.cloudModel = source["cloudModel"];
+	        this.hasGeminiKey = source["hasGeminiKey"];
+	        this.ollamaURL = source["ollamaURL"];
+	        this.ollamaUp = source["ollamaUp"];
+	    }
+	}
+
+}
+
 export namespace fsutil {
 	
 	export class DirEntry {
