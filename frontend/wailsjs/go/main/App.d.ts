@@ -12,6 +12,8 @@ export function GetAIStatus():Promise<ai.Status>;
 
 export function GetChatHistory():Promise<Array<ai.Message>>;
 
+export function GetPanelSizes():Promise<string>;
+
 export function GetProjectRoot():Promise<string>;
 
 export function ListDir(arg1:string):Promise<Array<fsutil.DirEntry>>;
@@ -23,6 +25,8 @@ export function OpenProject():Promise<string>;
 export function ReadFile(arg1:string):Promise<string>;
 
 export function RunCommand(arg1:string,arg2:string):Promise<terminal.Result>;
+
+export function SavePanelSizes(arg1:string):Promise<void>;
 
 export function SetAIMode(arg1:string):Promise<string>;
 

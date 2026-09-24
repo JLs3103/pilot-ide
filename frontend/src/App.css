@@ -1,23 +1,18 @@
 .ide-shell {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    grid-template-rows: 1fr 24px;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
     background: #151c27;
     color: #e8edf4;
+    overflow: hidden;
 }
 
-.ide-main {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    min-width: 0;
-}
-
-.ide-center {
-    display: grid;
-    grid-template-rows: 1fr 220px;
-    min-width: 0;
-    min-height: 0;
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
 }
 
 .pane-header {
@@ -58,7 +53,6 @@
 }
 
 .status-bar {
-    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     padding: 0 10px;
@@ -68,4 +62,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    height: 24px;
+    flex-shrink: 0;
 }

@@ -4,6 +4,7 @@
     min-height: 0;
     border-left: 1px solid #2a3546;
     background: #141b26;
+    height: 100%;
 }
 
 .chip {

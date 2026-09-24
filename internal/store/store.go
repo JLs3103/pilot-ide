@@ -13,9 +13,10 @@ import (
 )
 
 const (
-	keyMode    = "ai_mode"
-	keyGemini  = "gemini_key"
-	keyProject = "project_root"
+	keyMode        = "ai_mode"
+	keyGemini      = "gemini_key"
+	keyProject     = "project_root"
+	keyPanelSizes  = "panel_sizes"
 )
 
 type Store struct {
@@ -27,6 +28,7 @@ type Snapshot struct {
 	GeminiKey   string
 	ProjectRoot string
 	Messages    []ai.Message
+	PanelSizes  string
 }
 
 func DefaultPath() (string, error) {
@@ -94,6 +96,7 @@ func (s *Store) Load() (Snapshot, error) {
 		snap.GeminiKey = plain
 	}
 	snap.ProjectRoot = s.get(keyProject)
+	snap.PanelSizes = s.get(keyPanelSizes)
 	msgs, err := s.Messages()
 	if err != nil {
 		return snap, err
@@ -119,6 +122,10 @@ func (s *Store) SaveGeminiKey(plain string) error {
 
 func (s *Store) SaveProjectRoot(path string) error {
 	return s.set(keyProject, path)
+}
+
+func (s *Store) SavePanelSizes(sizes string) error {
+	return s.set(keyPanelSizes, sizes)
 }
 
 func (s *Store) ReplaceMessages(messages []ai.Message) error {

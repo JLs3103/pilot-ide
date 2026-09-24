@@ -4,11 +4,13 @@
     min-width: 0;
     min-height: 0;
     background: #1e1e1e;
+    height: 100%;
 }
 
 .editor-host {
     flex: 1;
     min-height: 0;
+    height: 100%;
 }
 
 .editor-empty {
@@ -17,4 +19,5 @@
     place-items: center;
     color: #8ea0b5;
     font-size: 14px;
+    height: 100%;
 }

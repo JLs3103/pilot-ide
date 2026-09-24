@@ -169,6 +169,21 @@ func (a *App) SetGeminiAPIKey(key string) {
 	a.persist(a.store.SaveGeminiKey(trimmed))
 }
 
+func (a *App) SavePanelSizes(sizes string) error {
+	return a.store.SavePanelSizes(sizes)
+}
+
+func (a *App) GetPanelSizes() string {
+	if a.store == nil {
+		return ""
+	}
+	snap, err := a.store.Load()
+	if err != nil {
+		return ""
+	}
+	return snap.PanelSizes
+}
+
 func (a *App) GetChatHistory() []ai.Message {
 	a.mu.Lock()
 	defer a.mu.Unlock()

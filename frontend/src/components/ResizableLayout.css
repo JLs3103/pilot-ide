@@ -1,0 +1,126 @@
+.resizable-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.main-panel-group {
+    display: flex !important;
+    flex-direction: row !important;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+.sidebar-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.right-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.center-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+}
+
+.editor-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.bottom-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    flex-shrink: 0;
+}
+
+.resize-handle {
+    background: #2a3546;
+    transition: background 0.15s ease;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.resize-handle:hover,
+.resize-handle.active {
+    background: #0f6fff;
+}
+
+.resize-handle.horizontal {
+    width: 4px;
+    cursor: col-resize;
+    height: 100%;
+    position: relative;
+}
+
+.resize-handle.horizontal::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -4px;
+    right: -4px;
+    cursor: col-resize;
+    z-index: 20;
+}
+
+.resize-handle.vertical {
+    height: 4px;
+    cursor: row-resize;
+    width: 100%;
+    position: relative;
+}
+
+.resize-handle.vertical::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -4px;
+    bottom: -4px;
+    cursor: row-resize;
+    z-index: 20;
+}
+
+.resizable-layout.resizing {
+    user-select: none;
+}
+
+.resizable-layout.resizing.resizing-col,
+.resizable-layout.resizing.resizing-col * {
+    cursor: col-resize !important;
+}
+
+.resizable-layout.resizing.resizing-row,
+.resizable-layout.resizing.resizing-row * {
+    cursor: row-resize !important;
+}
+
+.resizable-layout.resizing iframe,
+.resizable-layout.resizing .editor-host,
+.resizable-layout.resizing .monaco-editor {
+    pointer-events: none;
+}

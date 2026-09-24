@@ -18,6 +18,10 @@ export function GetChatHistory() {
   return window['go']['main']['App']['GetChatHistory']();
 }
 
+export function GetPanelSizes() {
+  return window['go']['main']['App']['GetPanelSizes']();
+}
+
 export function GetProjectRoot() {
   return window['go']['main']['App']['GetProjectRoot']();
 }
@@ -40,6 +44,10 @@ export function ReadFile(arg1) {
 
 export function RunCommand(arg1, arg2) {
   return window['go']['main']['App']['RunCommand'](arg1, arg2);
+}
+
+export function SavePanelSizes(arg1) {
+  return window['go']['main']['App']['SavePanelSizes'](arg1);
 }
 
 export function SetAIMode(arg1) {

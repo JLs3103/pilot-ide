@@ -97,12 +97,13 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
 
     return (
         <aside className="explorer">
-            <header className="pane-header">
-                <span>Explorer</span>
-                <button type="button" onClick={() => void openFolder()}>Open Folder</button>
-            </header>
-            <div className="explorer-root" title={root}>
-                {root || 'No project folder'}
+            <div className="explorer-header">
+                <div className="explorer-root" title={root}>
+                    {root || 'No project folder'}
+                </div>
+                <button type="button" className="open-folder-btn" onClick={() => void openFolder()}>
+                    Open Folder
+                </button>
             </div>
             {error ? <div className="pane-error">{error}</div> : null}
             <div className="explorer-tree">
