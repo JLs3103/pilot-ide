@@ -1,5 +1,6 @@
 import {useState, useEffect, useCallback, useRef} from 'react';
 import {SavePanelSizes, GetPanelSizes} from '../../wailsjs/go/main/App';
+import {PanelRightOpen} from 'lucide-react';
 import './ResizableLayout.css';
 
 type Props = {
@@ -12,6 +13,8 @@ type Props = {
     aiPanelVisible?: boolean;
     onSidebarAutoCollapse?: () => void;
     onSidebarExpand?: () => void;
+    onAiPanelAutoCollapse?: () => void;
+    onAiPanelExpand?: () => void;
 };
 
 type PanelSizes = {
@@ -41,7 +44,9 @@ export function ResizableLayout({
     terminalVisible = true,
     aiPanelVisible = true,
     onSidebarAutoCollapse,
-    onSidebarExpand
+    onSidebarExpand,
+    onAiPanelAutoCollapse,
+    onAiPanelExpand
 }: Props) {
     const [sidebarSize, setSidebarSize] = useState<number>(DEFAULT_SIZES.sidebar);
     const [rightPanelSize, setRightPanelSize] = useState<number>(DEFAULT_SIZES.rightPanel);
@@ -50,10 +55,12 @@ export function ResizableLayout({
 
     const containerRef = useRef<HTMLDivElement>(null);
     const lastValidSidebarSize = useRef<number>(DEFAULT_SIZES.sidebar);
+    const lastValidRightPanelSize = useRef<number>(DEFAULT_SIZES.rightPanel);
     const sidebarVisibleRef = useRef<boolean>(sidebarVisible);
     sidebarVisibleRef.current = sidebarVisible;
+    const aiPanelVisibleRef = useRef<boolean>(aiPanelVisible);
+    aiPanelVisibleRef.current = aiPanelVisible;
 
-    // Load saved sizes from SQLite
     useEffect(() => {
         const loadSizes = async () => {
             try {
@@ -68,6 +75,7 @@ export function ResizableLayout({
                     if (parsed.rightPanel) {
                         const valid = Math.min(50, Math.max(MIN_SIZES.rightPanel, parsed.rightPanel));
                         setRightPanelSize(valid);
+                        lastValidRightPanelSize.current = valid;
                     }
                     if (parsed.bottomPanel) {
                         const valid = Math.min(60, Math.max(MIN_SIZES.bottomPanel, parsed.bottomPanel));
@@ -81,7 +89,6 @@ export function ResizableLayout({
         void loadSizes();
     }, []);
 
-    // Save sizes to SQLite
     const saveSizes = useCallback(async (sizes: PanelSizes) => {
         try {
             await SavePanelSizes(JSON.stringify(sizes));
@@ -105,9 +112,6 @@ export function ResizableLayout({
 
         if (isResizing === 'horizontal-left') {
             const currentMouseX = e.clientX - containerRect.left;
-            // Navigation Rail is 48px.
-            // Collapse when pushed to the rail (<= 56px).
-            // Expand when pulled away from the rail (>= 62px).
             const collapseThreshold = 56;
             const expandThreshold = 62;
 
@@ -116,7 +120,6 @@ export function ResizableLayout({
                     sidebarVisibleRef.current = false;
                     onSidebarAutoCollapse();
                 }
-                // Do not kill isResizing! The user can smoothly drag back to the right anytime.
             } else if (currentMouseX >= expandThreshold) {
                 if (!sidebarVisibleRef.current && onSidebarExpand) {
                     sidebarVisibleRef.current = true;
@@ -132,27 +135,42 @@ export function ResizableLayout({
             }
         } else if (isResizing === 'horizontal-right') {
             const currentMouseRight = containerRect.right - e.clientX;
-            const newPercent = (currentMouseRight / totalWidth) * 100;
-            const clamped = Math.min(50, Math.max(MIN_SIZES.rightPanel, newPercent));
-            setRightPanelSize(clamped);
+            const collapseThresholdPx = 30;
+            const expandThresholdPx = 50;
+
+            if (currentMouseRight <= collapseThresholdPx) {
+                if (aiPanelVisibleRef.current && onAiPanelAutoCollapse) {
+                    aiPanelVisibleRef.current = false;
+                    onAiPanelAutoCollapse();
+                }
+            } else if (currentMouseRight >= expandThresholdPx) {
+                if (!aiPanelVisibleRef.current && onAiPanelExpand) {
+                    aiPanelVisibleRef.current = true;
+                    onAiPanelExpand();
+                }
+                const newPercent = (currentMouseRight / totalWidth) * 100;
+                const clamped = Math.min(50, Math.max(MIN_SIZES.rightPanel, newPercent));
+                lastValidRightPanelSize.current = clamped;
+                setRightPanelSize(clamped);
+            }
         } else if (isResizing === 'vertical') {
             const currentMouseBottom = containerRect.bottom - e.clientY;
             const newPercent = (currentMouseBottom / totalHeight) * 100;
             const clamped = Math.min(60, Math.max(MIN_SIZES.bottomPanel, newPercent));
             setBottomPanelSize(clamped);
         }
-    }, [isResizing, rightPanelSize, bottomPanelSize, onSidebarAutoCollapse, onSidebarExpand]);
+    }, [isResizing, rightPanelSize, bottomPanelSize, onSidebarAutoCollapse, onSidebarExpand, onAiPanelAutoCollapse, onAiPanelExpand]);
 
     const handleMouseUp = useCallback(() => {
         if (isResizing) {
             setIsResizing(null);
             void saveSizes({
                 sidebar: lastValidSidebarSize.current,
-                rightPanel: rightPanelSize,
+                rightPanel: lastValidRightPanelSize.current,
                 bottomPanel: bottomPanelSize
             });
         }
-    }, [isResizing, rightPanelSize, bottomPanelSize, saveSizes]);
+    }, [isResizing, bottomPanelSize, saveSizes]);
 
     useEffect(() => {
         if (isResizing) {
@@ -212,7 +230,8 @@ export function ResizableLayout({
                         height: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        position: 'relative'
                     }}
                 >
                     <div
@@ -248,6 +267,16 @@ export function ResizableLayout({
                                 {bottomPanel}
                             </div>
                         </>
+                    )}
+                    {!aiPanelVisible && (
+                        <button
+                            type="button"
+                            className="ai-panel-toggle-btn"
+                            onClick={onAiPanelExpand}
+                            title="Open AI Panel (Ctrl+Shift+M)"
+                        >
+                            <PanelRightOpen size={16} />
+                        </button>
                     )}
                 </div>
                 {aiPanelVisible && (

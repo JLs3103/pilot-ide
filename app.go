@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"pilot-ide/internal/agent"
 	"pilot-ide/internal/ai"
@@ -13,6 +15,7 @@ import (
 	"pilot-ide/internal/store"
 	"pilot-ide/internal/terminal"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -27,6 +30,14 @@ type App struct {
 	mode        string
 	geminiKey   string
 	chatHistory []ai.Message
+
+	terminalMu   sync.Mutex
+	terminalCwd  string
+	activeCancel context.CancelFunc
+
+	watcherMu   sync.Mutex
+	watcher     *fsnotify.Watcher
+	watcherDone chan struct{}
 }
 
 func NewApp() *App {
@@ -64,12 +75,17 @@ func (a *App) startup(ctx context.Context) {
 	if snap.ProjectRoot != "" {
 		if info, err := os.Stat(snap.ProjectRoot); err == nil && info.IsDir() {
 			a.projectRoot = snap.ProjectRoot
+			a.terminalMu.Lock()
+			a.terminalCwd = snap.ProjectRoot
+			a.terminalMu.Unlock()
 			runtime.WindowSetTitle(ctx, "Pilot IDE — "+snap.ProjectRoot)
+			a.startWatcher(snap.ProjectRoot)
 		}
 	}
 }
 
 func (a *App) shutdown(_ context.Context) {
+	a.stopWatcher()
 	if a.store != nil {
 		_ = a.store.Close()
 	}
@@ -86,8 +102,15 @@ func (a *App) OpenProject() (string, error) {
 		return a.projectRoot, nil
 	}
 	a.projectRoot = dir
+	a.terminalMu.Lock()
+	a.terminalCwd = dir
+	a.terminalMu.Unlock()
 	runtime.WindowSetTitle(a.ctx, "Pilot IDE — "+dir)
 	a.persist(a.store.SaveProjectRoot(dir))
+	a.startWatcher(dir)
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "project:opened", dir)
+	}
 	return dir, nil
 }
 
@@ -109,6 +132,107 @@ func (a *App) WriteFile(path, content string) error {
 	}
 	a.emitFSChanged()
 	return nil
+}
+
+func (a *App) SaveFileAs(defaultFilename, content string) (string, error) {
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Save File As",
+		DefaultFilename: defaultFilename,
+	})
+	if err != nil {
+		return "", err
+	}
+	if path == "" {
+		return "", nil
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return "", err
+	}
+	a.emitFSChanged()
+	return path, nil
+}
+
+func (a *App) CreateFile(path string) error {
+	if a.projectRoot == "" {
+		return fmt.Errorf("no project open")
+	}
+	abs, err := fsutil.Resolve(a.projectRoot, path)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		return err
+	}
+	if _, err := os.Stat(abs); err == nil {
+		return fmt.Errorf("file already exists")
+	}
+	if err := os.WriteFile(abs, []byte{}, 0o644); err != nil {
+		return err
+	}
+	a.emitFSChanged()
+	return nil
+}
+
+func (a *App) CreateFolder(path string) error {
+	if a.projectRoot == "" {
+		return fmt.Errorf("no project open")
+	}
+	abs, err := fsutil.Resolve(a.projectRoot, path)
+	if err != nil {
+		return err
+	}
+	if info, statErr := os.Stat(abs); statErr == nil && info.IsDir() {
+		return fmt.Errorf("folder already exists")
+	}
+	if err := os.MkdirAll(abs, 0o755); err != nil {
+		return err
+	}
+	a.emitFSChanged()
+	return nil
+}
+
+func (a *App) RenameFile(oldPath, newName string) (string, error) {
+	if a.projectRoot == "" {
+		return "", fmt.Errorf("no project open")
+	}
+	newPath := filepath.Join(filepath.Dir(oldPath), newName)
+	if _, err := os.Stat(newPath); err == nil {
+		return "", fmt.Errorf("a file or folder with that name already exists")
+	}
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return "", err
+	}
+	a.emitFSChanged()
+	return newPath, nil
+}
+
+func (a *App) DeleteFileOrDir(path string) error {
+	if a.projectRoot == "" {
+		return fmt.Errorf("no project open")
+	}
+	abs, err := fsutil.Resolve(a.projectRoot, path)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		if err := os.RemoveAll(abs); err != nil {
+			return err
+		}
+	} else {
+		if err := os.Remove(abs); err != nil {
+			return err
+		}
+	}
+	a.emitFSChanged()
+	return nil
+}
+
+func (a *App) QuitApp() {
+	runtime.Quit(a.ctx)
 }
 
 func (a *App) MapProjectTree(maxDepth int) (fsutil.TreeNode, error) {
@@ -133,6 +257,121 @@ func (a *App) RunCommand(command, cwd string) (terminal.Result, error) {
 		dir = resolved
 	}
 	return terminal.Run(dir, command)
+}
+
+func (a *App) RunCommandWithShell(command, cwd, shell string) (terminal.Result, error) {
+	if command == "" {
+		return terminal.Result{}, fmt.Errorf("command is empty")
+	}
+	if err := agent.RejectDangerousCommand(command); err != nil {
+		return terminal.Result{}, err
+	}
+
+	a.terminalMu.Lock()
+	dir := cwd
+	if dir == "" {
+		dir = a.terminalCwd
+	}
+	if dir == "" {
+		dir = a.projectRoot
+	}
+	if dir == "" {
+		dir = "."
+	}
+	if absDir, err := filepath.Abs(dir); err == nil {
+		if info, err := os.Stat(absDir); err == nil && info.IsDir() {
+			dir = absDir
+		}
+	}
+	a.terminalCwd = dir
+	a.terminalMu.Unlock()
+
+	if res, handled := terminal.HandleCd(command, dir, shell); handled {
+		if res.ExitCode == 0 && res.Cwd != "" {
+			a.terminalMu.Lock()
+			a.terminalCwd = res.Cwd
+			a.terminalMu.Unlock()
+		}
+		return res, nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	a.terminalMu.Lock()
+	a.activeCancel = cancel
+	a.terminalMu.Unlock()
+
+	defer func() {
+		a.terminalMu.Lock()
+		a.activeCancel = nil
+		a.terminalMu.Unlock()
+	}()
+
+	res, err := terminal.RunWithContext(ctx, dir, command, shell)
+	if res.Cwd == "" {
+		res.Cwd = dir
+	}
+	return res, err
+}
+
+func (a *App) KillTerminalCommand() error {
+	a.terminalMu.Lock()
+	defer a.terminalMu.Unlock()
+
+	if a.activeCancel != nil {
+		a.activeCancel()
+	}
+	return nil
+}
+
+func (a *App) OpenExternalTerminal(shell, cwd string) error {
+	a.terminalMu.Lock()
+	dir := cwd
+	if dir == "" {
+		dir = a.terminalCwd
+	}
+	if dir == "" {
+		dir = a.projectRoot
+	}
+	if dir == "" {
+		dir = "."
+	}
+	a.terminalMu.Unlock()
+
+	return terminal.OpenExternal(shell, dir)
+}
+
+func (a *App) GetTerminalCwd() string {
+	a.terminalMu.Lock()
+	defer a.terminalMu.Unlock()
+
+	if a.terminalCwd != "" {
+		return a.terminalCwd
+	}
+	return a.projectRoot
+}
+
+func (a *App) GetPathCompletions(dir, pathInput string, dirsOnly bool) ([]string, error) {
+	a.terminalMu.Lock()
+	if dir == "" {
+		dir = a.terminalCwd
+	}
+	if dir == "" {
+		dir = a.projectRoot
+	}
+	if dir == "" {
+		dir = "."
+	}
+	a.terminalMu.Unlock()
+
+	return terminal.CompletePath(dir, pathInput, dirsOnly)
+}
+
+func (a *App) GetAvailableShells() []string {
+	return terminal.AvailableShells()
+}
+
+func (a *App) GetDefaultShell() string {
+	return terminal.DefaultShell()
 }
 
 func (a *App) GetAIStatus() ai.Status {
@@ -182,6 +421,24 @@ func (a *App) GetPanelSizes() string {
 		return ""
 	}
 	return snap.PanelSizes
+}
+
+func (a *App) SaveOpenTabs(tabs string) error {
+	if a.store == nil {
+		return nil
+	}
+	return a.store.SaveOpenTabs(tabs)
+}
+
+func (a *App) GetOpenTabs() string {
+	if a.store == nil {
+		return ""
+	}
+	snap, err := a.store.Load()
+	if err != nil {
+		return ""
+	}
+	return snap.OpenTabs
 }
 
 func (a *App) GetChatHistory() []ai.Message {
@@ -265,5 +522,94 @@ func (a *App) emitFSChanged() {
 func (a *App) persist(err error) {
 	if err != nil && a.ctx != nil {
 		runtime.LogError(a.ctx, err.Error())
+	}
+}
+
+// startWatcher sets up an fsnotify watcher on the project root so that
+// external file changes (e.g. from the OS file manager) are pushed to the frontend.
+func (a *App) startWatcher(root string) {
+	a.stopWatcher()
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		if a.ctx != nil {
+			runtime.LogError(a.ctx, "fs watcher: "+err.Error())
+		}
+		return
+	}
+
+	done := make(chan struct{})
+	a.watcherMu.Lock()
+	a.watcher = w
+	a.watcherDone = done
+	a.watcherMu.Unlock()
+
+	// Add root and immediate subdirectories (1 level deep is enough;
+	// deeper dirs get added when expanded in the UI via fs:changed reload).
+	_ = w.Add(root)
+	a.addSubDirs(w, root, 3)
+
+	go func() {
+		defer close(done)
+		var debounce *time.Timer
+		for {
+			select {
+			case ev, ok := <-w.Events:
+				if !ok {
+					return
+				}
+				// When a new directory is created, start watching it too.
+				if ev.Op&(fsnotify.Create) != 0 {
+					if info, err := os.Stat(ev.Name); err == nil && info.IsDir() {
+						_ = w.Add(ev.Name)
+					}
+				}
+				// Debounce: batch rapid changes into a single emit.
+				if debounce != nil {
+					debounce.Stop()
+				}
+				debounce = time.AfterFunc(200*time.Millisecond, func() {
+					a.emitFSChanged()
+				})
+			case _, ok := <-w.Errors:
+				if !ok {
+					return
+				}
+			}
+		}
+	}()
+}
+
+func (a *App) stopWatcher() {
+	a.watcherMu.Lock()
+	w := a.watcher
+	a.watcher = nil
+	a.watcherMu.Unlock()
+	if w != nil {
+		_ = w.Close()
+	}
+}
+
+// addSubDirs recursively watches subdirectories up to a given depth.
+func (a *App) addSubDirs(w *fsnotify.Watcher, dir string, depth int) {
+	if depth <= 0 {
+		return
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		// Skip hidden dirs and common heavy dirs.
+		if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "__pycache__" {
+			continue
+		}
+		sub := filepath.Join(dir, name)
+		_ = w.Add(sub)
+		a.addSubDirs(w, sub, depth-1)
 	}
 }

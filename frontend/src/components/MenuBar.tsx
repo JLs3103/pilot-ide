@@ -10,7 +10,6 @@ import {
     ChevronDown,
     Save,
     FolderOpen,
-    FilePlus,
     X,
     Undo,
     Redo,
@@ -28,7 +27,8 @@ import {
     ArrowRight as ArrowRightIcon,
     Hash,
     Split,
-    Plus
+    Plus,
+    Command
 } from 'lucide-react';
 import './MenuBar.css';
 
@@ -37,18 +37,43 @@ type MenuItem = {
     icon?: React.ReactNode;
     shortcut?: string;
     action?: () => void;
-    submenu?: MenuItem[];
+    separator?: boolean;
 };
 
 type MenuBarProps = {
     onSave?: () => void;
+    onSaveAs?: () => void;
+    onCloseFile?: () => void;
+    onExit?: () => void;
     onOpenProject?: () => void;
+    onNewFile?: () => void;
     onToggleSidebar?: () => void;
     onToggleTerminal?: () => void;
     onToggleAiPanel?: () => void;
+    onNewTerminal?: () => void;
+    onSplitTerminal?: () => void;
+    onZoomIn?: () => void;
+    onZoomOut?: () => void;
+    onUndo?: () => void;
+    onRedo?: () => void;
+    onCut?: () => void;
+    onCopy?: () => void;
+    onPaste?: () => void;
+    onFind?: () => void;
+    onReplace?: () => void;
+    onSelectAll?: () => void;
+    onGoToLine?: () => void;
+    onCommandPalette?: () => void;
 };
 
-export function MenuBar({onSave, onOpenProject, onToggleSidebar, onToggleTerminal, onToggleAiPanel}: MenuBarProps) {
+export function MenuBar({
+    onSave, onSaveAs, onCloseFile, onExit, onOpenProject, onNewFile,
+    onToggleSidebar, onToggleTerminal, onToggleAiPanel,
+    onNewTerminal, onSplitTerminal,
+    onZoomIn, onZoomOut,
+    onUndo, onRedo, onCut, onCopy, onPaste, onFind, onReplace, onSelectAll,
+    onGoToLine, onCommandPalette,
+}: MenuBarProps) {
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
     const menuItems: Record<string, { label: string; icon: React.ReactNode; items: MenuItem[] }> = {
@@ -56,70 +81,66 @@ export function MenuBar({onSave, onOpenProject, onToggleSidebar, onToggleTermina
             label: 'File',
             icon: <FileText size={16} />,
             items: [
-                { label: 'New', icon: <FilePlus size={14} />, shortcut: 'Ctrl+N', action: () => console.log('New file') },
+                { label: 'New File', icon: <Plus size={14} />, shortcut: 'Ctrl+N', action: onNewFile },
                 { label: 'Open Project', icon: <FolderOpen size={14} />, shortcut: 'Ctrl+O', action: onOpenProject },
+                { label: 'separator', separator: true },
                 { label: 'Save', icon: <Save size={14} />, shortcut: 'Ctrl+S', action: onSave },
-                { label: 'Save As', icon: <Save size={14} />, shortcut: 'Ctrl+Shift+S', action: () => console.log('Save as') },
-                { label: 'Close', icon: <X size={14} />, shortcut: 'Ctrl+W', action: () => console.log('Close file') },
-                { label: 'Exit', icon: <X size={14} />, shortcut: 'Alt+F4', action: () => console.log('Exit') },
+                { label: 'Save As', icon: <Save size={14} />, shortcut: 'Ctrl+Shift+S', action: onSaveAs },
+                { label: 'separator', separator: true },
+                { label: 'Close', icon: <X size={14} />, shortcut: 'Ctrl+W', action: onCloseFile },
+                { label: 'Exit', icon: <X size={14} />, shortcut: 'Alt+F4', action: onExit },
             ]
         },
         edit: {
             label: 'Edit',
             icon: <Edit3 size={16} />,
             items: [
-                { label: 'Undo', icon: <Undo size={14} />, shortcut: 'Ctrl+Z', action: () => console.log('Undo') },
-                { label: 'Redo', icon: <Redo size={14} />, shortcut: 'Ctrl+Y', action: () => console.log('Redo') },
-                { label: 'Cut', icon: <Scissors size={14} />, shortcut: 'Ctrl+X', action: () => console.log('Cut') },
-                { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', action: () => console.log('Copy') },
-                { label: 'Paste', icon: <Clipboard size={14} />, shortcut: 'Ctrl+V', action: () => console.log('Paste') },
-                { label: 'Find', icon: <Search size={14} />, shortcut: 'Ctrl+F', action: () => console.log('Find') },
-                { label: 'Replace', icon: <Replace size={14} />, shortcut: 'Ctrl+H', action: () => console.log('Replace') },
+                { label: 'Undo', icon: <Undo size={14} />, shortcut: 'Ctrl+Z', action: onUndo },
+                { label: 'Redo', icon: <Redo size={14} />, shortcut: 'Ctrl+Y', action: onRedo },
+                { label: 'separator', separator: true },
+                { label: 'Cut', icon: <Scissors size={14} />, shortcut: 'Ctrl+X', action: onCut },
+                { label: 'Copy', icon: <Copy size={14} />, shortcut: 'Ctrl+C', action: onCopy },
+                { label: 'Paste', icon: <Clipboard size={14} />, shortcut: 'Ctrl+V', action: onPaste },
+                { label: 'separator', separator: true },
+                { label: 'Find', icon: <Search size={14} />, shortcut: 'Ctrl+F', action: onFind },
+                { label: 'Replace', icon: <Replace size={14} />, shortcut: 'Ctrl+H', action: onReplace },
             ]
         },
         selection: {
             label: 'Selection',
             icon: <CheckSquare size={16} />,
             items: [
-                { label: 'Select All', icon: <CheckSquare size={14} />, shortcut: 'Ctrl+A', action: () => console.log('Select all') },
-                { label: 'Expand Selection', icon: <Maximize size={14} />, shortcut: 'Ctrl+Shift+→', action: () => console.log('Expand selection') },
-                { label: 'Shrink Selection', icon: <Minimize size={14} />, shortcut: 'Ctrl+Shift+←', action: () => console.log('Shrink selection') },
+                { label: 'Select All', icon: <CheckSquare size={14} />, shortcut: 'Ctrl+A', action: onSelectAll },
             ]
         },
         view: {
             label: 'View',
             icon: <Eye size={16} />,
             items: [
+                { label: 'Command Palette', icon: <Command size={14} />, shortcut: 'Ctrl+Shift+P', action: onCommandPalette },
+                { label: 'separator', separator: true },
                 { label: 'Toggle Sidebar', icon: <Layers size={14} />, shortcut: 'Ctrl+B', action: onToggleSidebar },
                 { label: 'Toggle Terminal', icon: <Terminal size={14} />, shortcut: 'Ctrl+`', action: onToggleTerminal },
                 { label: 'Toggle AI Panel', icon: <File size={14} />, shortcut: 'Ctrl+Shift+M', action: onToggleAiPanel },
-                { label: 'Zoom In', icon: <ZoomIn size={14} />, shortcut: 'Ctrl++', action: () => console.log('Zoom in') },
-                { label: 'Zoom Out', icon: <ZoomOut size={14} />, shortcut: 'Ctrl+-', action: () => console.log('Zoom out') },
+                { label: 'separator', separator: true },
+                { label: 'Zoom In', icon: <ZoomIn size={14} />, shortcut: 'Ctrl++', action: onZoomIn },
+                { label: 'Zoom Out', icon: <ZoomOut size={14} />, shortcut: 'Ctrl+-', action: onZoomOut },
             ]
         },
         go: {
             label: 'Go',
             icon: <ArrowRight size={16} />,
             items: [
-                { label: 'Go to File', icon: <File size={14} />, shortcut: 'Ctrl+P', action: () => console.log('Go to file') },
-                { label: 'Go to Line', icon: <Hash size={14} />, shortcut: 'Ctrl+G', action: () => console.log('Go to line') },
-                { label: 'Go to Symbol', icon: <ArrowRightIcon size={14} />, shortcut: 'Ctrl+Shift+O', action: () => console.log('Go to symbol') },
-            ]
-        },
-        run: {
-            label: 'Run',
-            icon: <Play size={16} />,
-            items: [
-                { label: 'Run Current File', icon: <Play size={14} />, shortcut: 'F5', action: () => console.log('Run current file') },
-                { label: 'Run Project', icon: <Play size={14} />, shortcut: 'Ctrl+F5', action: () => console.log('Run project') },
+                { label: 'Go to Line', icon: <Hash size={14} />, shortcut: 'Ctrl+G', action: onGoToLine },
+                { label: 'Go to File', icon: <File size={14} />, shortcut: 'Ctrl+P', action: onCommandPalette },
             ]
         },
         terminal: {
             label: 'Terminal',
             icon: <Terminal size={16} />,
             items: [
-                { label: 'New Terminal', icon: <Plus size={14} />, shortcut: 'Ctrl+Shift+`', action: () => console.log('New terminal') },
-                { label: 'Split Terminal', icon: <Split size={14} />, shortcut: 'Ctrl+Shift+5', action: () => console.log('Split terminal') },
+                { label: 'New Terminal', icon: <Plus size={14} />, shortcut: 'Ctrl+Shift+`', action: onNewTerminal },
+                { label: 'Split Terminal', icon: <Split size={14} />, shortcut: 'Ctrl+Shift+5', action: onSplitTerminal },
             ]
         }
     };
@@ -129,6 +150,7 @@ export function MenuBar({onSave, onOpenProject, onToggleSidebar, onToggleTermina
     };
 
     const handleMenuItemClick = (item: MenuItem) => {
+        if (item.separator) return;
         if (item.action) {
             item.action();
         }
@@ -140,14 +162,12 @@ export function MenuBar({onSave, onOpenProject, onToggleSidebar, onToggleTermina
     };
 
     const handleMenuMouseLeave = () => {
-        // Delay closing to allow user to move to dropdown
         setTimeout(() => {
             setActiveMenu(null);
         }, 200);
     };
 
     const handleDropdownMouseEnter = () => {
-        // Keep menu open when hovering over dropdown
         setActiveMenu(activeMenu);
     };
 
@@ -178,17 +198,22 @@ export function MenuBar({onSave, onOpenProject, onToggleSidebar, onToggleTermina
                             onMouseEnter={handleDropdownMouseEnter}
                             onMouseLeave={handleDropdownMouseLeave}
                         >
-                            {menu.items.map((item, index) => (
-                                <div
-                                    key={index}
-                                    className="menu-dropdown-item"
-                                    onClick={() => handleMenuItemClick(item)}
-                                >
-                                    <span className="dropdown-icon">{item.icon}</span>
-                                    <span className="dropdown-label">{item.label}</span>
-                                    {item.shortcut && <span className="dropdown-shortcut">{item.shortcut}</span>}
-                                </div>
-                            ))}
+                            {menu.items.map((item, index) => {
+                                if (item.separator) {
+                                    return <div key={`sep-${index}`} className="menu-dropdown-separator" />;
+                                }
+                                return (
+                                    <div
+                                        key={index}
+                                        className="menu-dropdown-item"
+                                        onClick={() => handleMenuItemClick(item)}
+                                    >
+                                        <span className="dropdown-icon">{item.icon}</span>
+                                        <span className="dropdown-label">{item.label}</span>
+                                        {item.shortcut && <span className="dropdown-shortcut">{item.shortcut}</span>}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

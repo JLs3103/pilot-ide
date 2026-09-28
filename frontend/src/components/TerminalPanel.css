@@ -5,38 +5,357 @@
     border-top: 1px solid #2a3546;
     background: #0d1117;
     height: 100%;
+    cursor: text;
 }
 
-.terminal-log {
-    flex: 1;
-    margin: 0;
-    padding: 8px 10px;
-    overflow: auto;
-    font-family: Consolas, "Courier New", monospace;
+.terminal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    height: 36px;
+    padding: 4px 10px;
+    border-bottom: 1px solid #2a3546;
+    background: #1b2432;
     font-size: 12px;
-    text-align: left;
-    white-space: pre-wrap;
+    flex-shrink: 0;
+    cursor: default;
 }
 
-.terminal-input {
+.terminal-header-left {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 10px;
-    border-top: 1px solid #2a3546;
+    color: #9aa8bb;
 }
 
-.terminal-input span {
-    color: #6fdf9f;
+.terminal-header-left > svg {
+    flex-shrink: 0;
+}
+
+.terminal-title {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9aa8bb;
+}
+
+.terminal-header-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.terminal-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    color: #9aa8bb;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.terminal-action-btn:hover {
+    background: #2d3d55;
+    color: #e8edf4;
+}
+
+.terminal-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ff6b6b;
+}
+
+.terminal-kill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    height: 24px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 4px;
+    color: #ff6b6b;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.terminal-kill-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ff6b6b;
+    color: #ffffff;
+}
+
+.terminal-native-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    height: 24px;
+    background: #1e2a3a;
+    border: 1px solid #2a3546;
+    border-radius: 4px;
+    color: #9aa8bb;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.terminal-native-btn:hover {
+    background: #2d3d55;
+    border-color: #3d5070;
+    color: #e8edf4;
+}
+
+.shell-selector {
+    position: relative;
+}
+
+.shell-selector-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    background: #1e2a3a;
+    border: 1px solid #2a3546;
+    border-radius: 4px;
+    color: #e8edf4;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s ease;
+}
+
+.shell-selector-btn:hover {
+    background: #2d3d55;
+    border-color: #3d5070;
+}
+
+.shell-label {
+    font-size: 11px;
+}
+
+.shell-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    padding: 0 4px;
+    height: 18px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
     font-family: Consolas, "Courier New", monospace;
+    letter-spacing: -0.02em;
 }
 
-.terminal-input input {
+.shell-badge.shell-powershell {
+    background: rgba(0, 120, 212, 0.25);
+    color: #5cb3ff;
+}
+
+.shell-badge.shell-cmd {
+    background: rgba(200, 200, 200, 0.15);
+    color: #d4d4d4;
+}
+
+.shell-badge.shell-bash {
+    background: rgba(111, 223, 159, 0.15);
+    color: #6fdf9f;
+}
+
+.shell-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 180px;
+    background: #1b2432;
+    border: 1px solid #2a3546;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    padding: 4px;
+    animation: shellDropdownIn 0.12s ease-out;
+}
+
+@keyframes shellDropdownIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.shell-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    color: #e8edf4;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: background 0.1s ease;
+}
+
+.shell-option:hover {
+    background: #2d3d55;
+}
+
+.shell-option.active {
+    background: rgba(15, 111, 255, 0.15);
+}
+
+.shell-check {
+    margin-left: auto;
+    color: #0f6fff;
+    font-size: 13px;
+}
+
+.terminal-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px 14px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    background: #0d1117;
+    cursor: text;
+}
+
+.terminal-history {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.terminal-prompt-text {
+    font-weight: 600;
+}
+
+.terminal-prompt-text.prompt-powershell {
+    color: #5cb3ff;
+}
+
+.terminal-prompt-text.prompt-cmd {
+    color: #d4d4d4;
+}
+
+.terminal-prompt-text.prompt-bash {
+    color: #6fdf9f;
+}
+
+.terminal-command-text {
+    color: #e8edf4;
+}
+
+.terminal-output-text {
+    color: #b0bec5;
+}
+
+.terminal-error-text {
+    color: #ff8e8e;
+}
+
+.terminal-input-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 20px;
+    line-height: 1.5;
+}
+
+.terminal-prompt {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.terminal-prompt.prompt-powershell {
+    color: #5cb3ff;
+}
+
+.terminal-prompt.prompt-cmd {
+    color: #d4d4d4;
+}
+
+.terminal-prompt.prompt-bash {
+    color: #6fdf9f;
+}
+
+.terminal-input-line input {
     flex: 1;
     background: transparent;
     border: 0;
-    color: inherit;
+    color: #e8edf4;
     outline: none;
     font-family: Consolas, "Courier New", monospace;
     font-size: 12px;
+    line-height: 1.5;
+    caret-color: #5cb3ff;
+    padding: 0;
+    margin: 0;
+}
+
+.terminal-input-line input::placeholder {
+    color: #4a5568;
+}
+
+.terminal-input-line input:disabled {
+    opacity: 0.5;
+}
+
+.tab-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 0;
+    margin-top: 4px;
+    border-top: 1px solid #1e2a3a;
+}
+
+.tab-suggestion {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: #9aa8bb;
+    background: #1b2432;
+    border-radius: 3px;
+    transition: all 0.1s ease;
+}
+
+.tab-suggestion.active {
+    background: #0f6fff;
+    color: #ffffff;
+}
+
+.terminal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.terminal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.terminal-body::-webkit-scrollbar-thumb {
+    background: #2a3546;
+    border-radius: 4px;
+}
+
+.terminal-body::-webkit-scrollbar-thumb:hover {
+    background: #3d5070;
 }

@@ -11,18 +11,73 @@
 
 .explorer-header {
     display: flex;
-    flex-direction: column;
-    padding: 8px 10px;
+    align-items: center;
+    padding: 0 6px 0 10px;
     border-bottom: 1px solid #2a3546;
+    min-height: 32px;
+    user-select: none;
 }
 
-.explorer-root {
-    padding: 4px 0 8px;
+.explorer-project-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 4px;
+}
+
+.explorer-project-name {
     font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
     color: #9aa8bb;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.explorer-header-icons {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+.explorer-header:hover .explorer-header-icons {
+    opacity: 1;
+}
+
+.explorer-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #8ea0b5;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.12s ease;
+}
+
+.explorer-icon-btn:hover {
+    background: #253044;
+    color: #5cb3ff;
+}
+
+.explorer-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 4px 0;
 }
 
 .open-folder-btn {
@@ -30,10 +85,11 @@
     color: #e8edf4;
     border: none;
     border-radius: 4px;
-    padding: 4px 8px;
+    padding: 4px 10px;
     font-size: 12px;
     cursor: pointer;
     transition: background 0.15s ease;
+    width: 100%;
 }
 
 .open-folder-btn:hover {
@@ -43,20 +99,26 @@
 .explorer-tree {
     overflow: auto;
     flex: 1;
+    position: relative;
 }
 
 .tree-item {
     display: flex;
     width: 100%;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     border: 0;
     background: transparent;
     color: inherit;
     text-align: left;
     font-size: 13px;
-    line-height: 24px;
+    line-height: 22px;
     cursor: pointer;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-right: 8px;
+    transition: background 0.1s ease;
+    font-family: inherit;
 }
 
 .tree-item:hover {
@@ -67,7 +129,123 @@
     background: #2b4d78;
 }
 
-.tree-glyph {
-    width: 12px;
+.tree-chevron {
+    width: 16px;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.tree-chevron-svg {
+    width: 16px;
+    height: 16px;
     color: #8ea0b5;
+    transition: transform 0.15s ease;
+    transform: rotate(0deg);
+}
+
+.tree-chevron-svg.expanded {
+    transform: rotate(90deg);
+}
+
+.tree-chevron-spacer {
+    width: 16px;
+    min-width: 16px;
+    flex-shrink: 0;
+}
+
+.tree-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.tree-icon svg {
+    display: block;
+}
+
+.tree-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    margin-left: 2px;
+}
+
+.explorer-context-menu {
+    position: fixed;
+    z-index: 9990;
+    background: #1b2432;
+    border: 1px solid #2a3546;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    padding: 4px 0;
+    min-width: 170px;
+    animation: ctxFadeIn 0.1s ease-out;
+}
+
+@keyframes ctxFadeIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: #c5d2e2;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.08s ease;
+}
+
+.context-menu-item:hover {
+    background: #253044;
+}
+
+.context-menu-danger:hover {
+    background: #3a1e1e;
+    color: #ff8e8e;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: #2a3546;
+    margin: 3px 8px;
+}
+
+.inline-input-row {
+    display: flex;
+    align-items: center;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-right: 8px;
+}
+
+.inline-input {
+    flex: 1;
+    background: #0f151e;
+    border: 1px solid #5cb3ff;
+    border-radius: 3px;
+    color: #e8edf4;
+    font-size: 13px;
+    padding: 2px 6px;
+    outline: none;
+    font-family: inherit;
+    min-width: 0;
+    line-height: 20px;
 }

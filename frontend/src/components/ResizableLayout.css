@@ -124,3 +124,30 @@
 .resizable-layout.resizing .monaco-editor {
     pointer-events: none;
 }
+
+.ai-panel-toggle-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #2a3546;
+    border-radius: 6px;
+    background: #1b2432;
+    color: #8ea0b5;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    opacity: 0.8;
+}
+
+.ai-panel-toggle-btn:hover {
+    background: #253044;
+    color: #5cb3ff;
+    opacity: 1;
+    border-color: #3d5070;
+}

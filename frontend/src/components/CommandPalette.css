@@ -1,0 +1,142 @@
+.palette-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    padding-top: 15vh;
+}
+
+.palette-dialog {
+    width: 520px;
+    max-width: 90vw;
+    background: #1b2432;
+    border: 1px solid #2a3546;
+    border-radius: 8px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    max-height: 400px;
+    overflow: hidden;
+    animation: paletteSlideIn 0.12s ease-out;
+}
+
+@keyframes paletteSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.palette-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #2a3546;
+}
+
+.palette-prefix {
+    color: #5cb3ff;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: Consolas, monospace;
+    flex-shrink: 0;
+}
+
+.palette-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #e8edf4;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    min-width: 0;
+}
+
+.palette-input::placeholder {
+    color: #5c7090;
+}
+
+.palette-input[type="number"]::-webkit-inner-spin-button,
+.palette-input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.palette-input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.palette-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 0;
+}
+
+.palette-empty {
+    padding: 16px;
+    color: #5c7090;
+    text-align: center;
+    font-size: 13px;
+}
+
+.palette-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: #c5d2e2;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.08s ease;
+}
+
+.palette-item:hover,
+.palette-item.selected {
+    background: #253044;
+}
+
+.palette-item.selected {
+    background: #2b4d78;
+}
+
+.palette-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    color: #8ea0b5;
+    flex-shrink: 0;
+}
+
+.palette-item-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.palette-item-shortcut {
+    color: #6b7f96;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    font-family: Consolas, monospace;
+}

@@ -8,6 +8,7 @@ export type CommandResult = {
     stdout: string;
     stderr: string;
     exitCode: number;
+    cwd?: string;
 };
 
 export type AIStatus = {

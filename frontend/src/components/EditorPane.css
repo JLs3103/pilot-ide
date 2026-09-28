@@ -7,6 +7,207 @@
     height: 100%;
 }
 
+.editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    height: 36px;
+    padding: 0 10px 0 0;
+    border-bottom: 1px solid #2a3546;
+    background: #1b2432;
+}
+
+.editor-title {
+    padding-left: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #9aa8bb;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.editor-tab-bar-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    overflow: hidden;
+    position: relative;
+}
+
+.editor-tab-bar {
+    display: flex;
+    align-items: stretch;
+    height: 36px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    flex: 1;
+    min-width: 0;
+}
+
+.editor-tab-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-scroll-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 36px;
+    background: #1b2432 !important;
+    border: none !important;
+    color: #9aa8bb !important;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0 !important;
+    z-index: 2;
+    transition: color 0.15s ease;
+}
+
+.tab-scroll-btn:hover {
+    color: #e8edf4 !important;
+    background: #253044 !important;
+}
+
+.editor-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 6px 0 12px;
+    background: #181f2c;
+    border-right: 1px solid #2a3546;
+    border-bottom: 2px solid transparent;
+    color: #8ea0b5;
+    font-size: 12px;
+    font-weight: 400;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease, border-bottom-color 0.15s ease;
+}
+
+.editor-tab:hover {
+    background: #1e2a3b;
+    color: #c5d2e2;
+}
+
+.editor-tab.active {
+    background: #1e1e1e;
+    color: #e8edf4;
+    font-weight: 500;
+    border-bottom: 2px solid #5cb3ff;
+}
+
+.editor-tab-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.editor-tab-name {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.editor-tab-dirty {
+    color: #5cb3ff;
+    font-weight: 800;
+    font-size: 16px;
+    line-height: 1;
+    margin-left: 2px;
+}
+
+.editor-tab-close {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0 !important;
+    margin-left: 2px;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 3px;
+    color: #9aa8bb !important;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.15s ease;
+}
+
+.editor-tab:hover .editor-tab-close,
+.editor-tab.active .editor-tab-close {
+    opacity: 1;
+}
+
+.editor-tab-close:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ff6b6b !important;
+}
+
+.editor-tab-dirty-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #5cb3ff;
+    display: block;
+}
+
+.editor-tab.dirty .editor-tab-close {
+    opacity: 1;
+}
+
+.editor-tab.dirty:hover .editor-tab-dirty-dot {
+    display: none;
+}
+
+.editor-tab.dirty:hover .editor-tab-close::after {
+    content: '×';
+    font-size: 14px;
+    line-height: 1;
+}
+
+.editor-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.editor-save-btn {
+    text-transform: none;
+    letter-spacing: 0;
+    background: #2d3d55;
+    color: #e8edf4;
+    border: 0;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.editor-save-btn:hover:not(:disabled) {
+    background: #3d5070;
+}
+
+.editor-save-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
 .editor-host {
     flex: 1;
     min-height: 0;
@@ -20,4 +221,24 @@
     color: #8ea0b5;
     font-size: 14px;
     height: 100%;
+    background: #1e1e1e;
+}
+
+.editor-empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.editor-empty-icon {
+    color: #3d5070;
+    opacity: 0.7;
+}
+
+.editor-empty-hint {
+    font-size: 11px;
+    color: #5c7090;
+    margin-top: 4px;
 }

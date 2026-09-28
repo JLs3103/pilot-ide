@@ -161,6 +161,7 @@ export namespace terminal {
 	    stdout: string;
 	    stderr: string;
 	    exitCode: number;
+	    cwd: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Result(source);
@@ -171,6 +172,7 @@ export namespace terminal {
 	        this.stdout = source["stdout"];
 	        this.stderr = source["stderr"];
 	        this.exitCode = source["exitCode"];
+	        this.cwd = source["cwd"];
 	    }
 	}
 

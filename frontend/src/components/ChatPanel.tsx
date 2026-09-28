@@ -1,7 +1,8 @@
-import {FormEvent, useEffect, useRef, useState} from 'react';
+import {FormEvent, useEffect, useRef, useState, useCallback} from 'react';
 import {Chat, ClearChat, GetAIStatus, GetChatHistory, SetAIMode, SetGeminiAPIKey} from '../../wailsjs/go/main/App';
 import {EventsOn} from '../../wailsjs/runtime/runtime';
 import type {AIStatus, ToolAction} from '../types';
+import {Send, Square, Trash2, Download, Settings, Loader2} from 'lucide-react';
 import './ChatPanel.css';
 
 type Message = {
@@ -23,8 +24,25 @@ export function ChatPanel() {
     const [busy, setBusy] = useState(false);
     const [busyLabel, setBusyLabel] = useState('Thinking…');
     const [keySaved, setKeySaved] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
     const logRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toolCountRef = useRef(0);
+
+    const autoResizeTextarea = useCallback(() => {
+        const ta = textareaRef.current;
+        if (!ta) return;
+        ta.style.height = 'auto';
+        const lineHeight = 20;
+        const minHeight = lineHeight;
+        const maxHeight = lineHeight * 6;
+        const newHeight = Math.min(Math.max(ta.scrollHeight, minHeight), maxHeight);
+        ta.style.height = `${newHeight}px`;
+    }, []);
+
+    useEffect(() => {
+        autoResizeTextarea();
+    }, [draft, autoResizeTextarea]);
 
     async function refreshStatus() {
         const next = await GetAIStatus() as AIStatus;
@@ -133,6 +151,19 @@ export function ChatPanel() {
         setMessages([{role: 'system', text: 'Riwayat percakapan direset.'}]);
     }
 
+    function exportChat() {
+        const text = messages
+            .map((m) => `[${m.role.toUpperCase()}] ${m.text}`)
+            .join('\n\n');
+        const blob = new Blob([text], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pilot-chat-${Date.now()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     const mode = status?.mode ?? 'local';
     const chip = mode === 'cloud'
         ? (status?.hasGeminiKey ? 'Cloud' : 'Cloud · no key')
@@ -144,46 +175,94 @@ export function ChatPanel() {
                 <span>Agent</span>
                 <span className="chip">{chip}</span>
             </header>
-            <div className="agent-toolbar">
-                <select
-                    value={mode}
-                    onChange={(e) => void changeMode(e.target.value)}
+
+            {/* Quick Actions Bar */}
+            <div className="chat-quick-actions">
+                <button
+                    type="button"
+                    className="chat-action-btn"
+                    onClick={() => void resetChat()}
                     disabled={busy}
+                    title="Clear Chat"
                 >
-                    <option value="local">Local · Ollama</option>
-                    <option value="cloud">Cloud · Gemini</option>
-                </select>
-                <button type="button" onClick={() => void resetChat()} disabled={busy}>Clear</button>
+                    <Trash2 size={14} />
+                    <span>Clear</span>
+                </button>
+                <button
+                    type="button"
+                    className="chat-action-btn"
+                    onClick={exportChat}
+                    disabled={messages.length === 0}
+                    title="Export Chat"
+                >
+                    <Download size={14} />
+                    <span>Export</span>
+                </button>
+                <button
+                    type="button"
+                    className={`chat-action-btn ${showSettings ? 'active' : ''}`}
+                    onClick={() => setShowSettings(!showSettings)}
+                    title="Settings"
+                >
+                    <Settings size={14} />
+                    <span>Settings</span>
+                </button>
             </div>
-            {mode === 'cloud' ? (
-                <div className="agent-key">
-                    <input
-                        type="password"
-                        value={keyDraft}
-                        onChange={(e) => {
-                            setKeyDraft(e.target.value);
-                            setKeySaved(false);
-                        }}
-                        placeholder={status?.hasGeminiKey ? 'Key saved on this device' : 'Gemini API key'}
-                        autoComplete="off"
-                        spellCheck={false}
-                    />
-                    <button type="button" onClick={() => void saveKey()} disabled={!keyDraft.trim()}>Save</button>
+
+            {/* Settings Panel (collapsible) */}
+            {showSettings && (
+                <div className="chat-settings-panel">
+                    <div className="agent-toolbar">
+                        <select
+                            value={mode}
+                            onChange={(e) => void changeMode(e.target.value)}
+                            disabled={busy}
+                        >
+                            <option value="local">Local · Ollama</option>
+                            <option value="cloud">Cloud · Gemini</option>
+                        </select>
+                    </div>
+                    {mode === 'cloud' ? (
+                        <div className="agent-key">
+                            <input
+                                type="password"
+                                value={keyDraft}
+                                onChange={(e) => {
+                                    setKeyDraft(e.target.value);
+                                    setKeySaved(false);
+                                }}
+                                placeholder={status?.hasGeminiKey ? 'Key saved on this device' : 'Gemini API key'}
+                                autoComplete="off"
+                                spellCheck={false}
+                            />
+                            <button type="button" onClick={() => void saveKey()} disabled={!keyDraft.trim()}>Save</button>
+                        </div>
+                    ) : null}
+                    {keySaved && mode === 'cloud' ? <div className="agent-hint">API key dienkripsi di SQLite lokal (bukan hanya sesi).</div> : null}
                 </div>
-            ) : null}
-            {keySaved && mode === 'cloud' ? <div className="agent-hint">API key dienkripsi di SQLite lokal (bukan hanya sesi).</div> : null}
+            )}
+
+            {/* Chat Log */}
             <div className="chat-log" ref={logRef}>
                 {messages.map((msg, i) => (
                     <div key={i} className={`chat-bubble ${msg.role}`}>{msg.text}</div>
                 ))}
-                {busy ? <div className="chat-bubble system">{busyLabel}</div> : null}
+                {busy ? (
+                    <div className="chat-bubble system chat-thinking">
+                        <Loader2 size={14} className="chat-spinner" />
+                        <span>{busyLabel}</span>
+                    </div>
+                ) : null}
             </div>
+
+            {/* Input Area */}
             <form className="chat-input" onSubmit={(e) => void send(e)}>
                 <textarea
+                    ref={textareaRef}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     placeholder={mode === 'cloud' ? 'Ask Gemini…' : 'Ask Qwen (Ollama)…'}
-                    rows={3}
+                    rows={1}
                     disabled={busy}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -192,7 +271,22 @@ export function ChatPanel() {
                         }
                     }}
                 />
-                <button type="submit" disabled={busy || !draft.trim()}>Send</button>
+                <button
+                    type="submit"
+                    className={`chat-submit-btn ${busy ? 'chat-stop-btn' : ''}`}
+                    disabled={!busy && !draft.trim()}
+                    title={busy ? 'Stop' : 'Send (Enter)'}
+                    onClick={busy ? (e) => {
+                        e.preventDefault();
+                        // Could add stop functionality here
+                    } : undefined}
+                >
+                    {busy ? (
+                        <Square size={16} className="chat-stop-icon" />
+                    ) : (
+                        <Send size={16} />
+                    )}
+                </button>
             </form>
         </aside>
     );

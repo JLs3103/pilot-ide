@@ -8,23 +8,53 @@ export function Chat(arg1:string):Promise<ai.Reply>;
 
 export function ClearChat():Promise<void>;
 
+export function CreateFile(arg1:string):Promise<void>;
+
+export function CreateFolder(arg1:string):Promise<void>;
+
+export function DeleteFileOrDir(arg1:string):Promise<void>;
+
 export function GetAIStatus():Promise<ai.Status>;
+
+export function GetAvailableShells():Promise<Array<string>>;
 
 export function GetChatHistory():Promise<Array<ai.Message>>;
 
+export function GetDefaultShell():Promise<string>;
+
+export function GetOpenTabs():Promise<string>;
+
 export function GetPanelSizes():Promise<string>;
 
+export function GetPathCompletions(arg1:string,arg2:string,arg3:boolean):Promise<Array<string>>;
+
 export function GetProjectRoot():Promise<string>;
+
+export function GetTerminalCwd():Promise<string>;
+
+export function KillTerminalCommand():Promise<void>;
 
 export function ListDir(arg1:string):Promise<Array<fsutil.DirEntry>>;
 
 export function MapProjectTree(arg1:number):Promise<fsutil.TreeNode>;
 
+export function OpenExternalTerminal(arg1:string,arg2:string):Promise<void>;
+
 export function OpenProject():Promise<string>;
+
+export function QuitApp():Promise<void>;
 
 export function ReadFile(arg1:string):Promise<string>;
 
+export function RenameFile(arg1:string,arg2:string):Promise<string>;
+
 export function RunCommand(arg1:string,arg2:string):Promise<terminal.Result>;
+
+export function RunCommandWithShell(arg1:string,arg2:string,arg3:string):Promise<terminal.Result>;
+
+export function SaveFileAs(arg1:string,arg2:string):Promise<string>;
+
+export function SaveOpenTabs(arg1:string):Promise<void>;
 
 export function SavePanelSizes(arg1:string):Promise<void>;
 

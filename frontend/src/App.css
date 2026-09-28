@@ -51,17 +51,3 @@
     font-size: 12px;
     padding: 6px 10px;
 }
-
-.status-bar {
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    background: #0f6fff;
-    color: white;
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    height: 24px;
-    flex-shrink: 0;
-}
