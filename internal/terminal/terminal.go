@@ -301,3 +301,22 @@ func RunWithContext(ctx context.Context, cwd, command, shell string) (Result, er
 	}
 	return result, nil
 }
+
+func RunSimple(cwd, name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = cwd
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		msg := stderr.String()
+		if msg == "" {
+			msg = err.Error()
+		}
+		return "", fmt.Errorf("%s", strings.TrimSpace(msg))
+	}
+	return stdout.String(), nil
+}

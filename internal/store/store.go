@@ -208,3 +208,11 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value
 `, key, value)
 	return err
 }
+
+func (s *Store) Set(key, value string) error {
+	return s.set(key, value)
+}
+
+func (s *Store) Get(key string) string {
+	return s.get(key)
+}

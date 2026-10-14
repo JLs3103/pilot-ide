@@ -2,6 +2,7 @@ import {FormEvent, useEffect, useRef, useState, useCallback} from 'react';
 import {Chat, ClearChat, GetAIStatus, GetChatHistory, SetAIMode, SetGeminiAPIKey} from '../../wailsjs/go/main/App';
 import {EventsOn} from '../../wailsjs/runtime/runtime';
 import type {AIStatus, ToolAction} from '../types';
+import {formatError, reportError} from '../lib/notifications';
 import {Send, Square, Trash2, Download, Settings, Loader2} from 'lucide-react';
 import './ChatPanel.css';
 
@@ -55,20 +56,25 @@ export function ChatPanel() {
 
     useEffect(() => {
         void (async () => {
-            const next = await refreshStatus();
-            const history = await GetChatHistory();
-            const restored = (history ?? [])
-                .filter((m) => m.role === 'user' || m.role === 'assistant')
-                .map((m) => ({role: m.role as 'user' | 'assistant', text: m.content}));
-            const intro: Message = {
-                role: 'system',
-                text: restored.length
-                    ? `Pengaturan dipulihkan dari SQLite. Mode: ${next.mode}. ${next.hasGeminiKey ? 'API key tersimpan di perangkat ini.' : 'API key Gemini belum tersimpan.'}`
-                    : (next.ollamaUp
-                        ? `Dual-Brain siap. Mode: ${next.mode} (${next.mode === 'cloud' ? next.cloudModel : next.localModel}).`
-                        : `Mode Local membutuhkan Ollama di ${next.ollamaURL}. Cloud memakai Gemini ${next.cloudModel} + API key.`),
-            };
-            setMessages([intro, ...restored]);
+            try {
+                const next = await refreshStatus();
+                const history = await GetChatHistory();
+                const restored = (history ?? [])
+                    .filter((m) => m.role === 'user' || m.role === 'assistant')
+                    .map((m) => ({role: m.role as 'user' | 'assistant', text: m.content}));
+                const intro: Message = {
+                    role: 'system',
+                    text: restored.length
+                        ? `Pengaturan dipulihkan dari SQLite. Mode: ${next.mode}. ${next.hasGeminiKey ? 'API key tersimpan di perangkat ini.' : 'API key Gemini belum tersimpan.'}`
+                        : (next.ollamaUp
+                            ? `Dual-Brain siap. Mode: ${next.mode} (${next.mode === 'cloud' ? next.cloudModel : next.localModel}).`
+                            : `Mode Local membutuhkan Ollama di ${next.ollamaURL}. Cloud memakai Gemini ${next.cloudModel} + API key.`),
+                };
+                setMessages([intro, ...restored]);
+            } catch (error) {
+                reportError('AI panel initialization failed', error);
+                setMessages([{role: 'error', text: `AI panel unavailable: ${formatError(error)}. You can continue editing files.`}]);
+            }
         })();
     }, []);
 
@@ -93,17 +99,16 @@ export function ChatPanel() {
     }, [messages, busy, busyLabel]);
 
     async function changeMode(mode: string) {
-        const applied = await SetAIMode(mode);
-        const next = await refreshStatus();
-        setMessages((prev) => [
-            ...prev,
-            {
-                role: 'system',
-                text: applied === 'cloud'
-                    ? `Mode Cloud: ${next.cloudModel}. ${next.hasGeminiKey ? 'API key tersimpan di perangkat ini.' : 'Masukkan API key lalu Save.'}`
-                    : `Mode Local: ${next.localModel}. Ollama ${next.ollamaUp ? 'terhubung' : 'tidak terdeteksi'}.`,
-            },
-        ]);
+        try {
+            const applied = await SetAIMode(mode);
+            const next = await refreshStatus();
+            setMessages((prev) => [...prev, {role: 'system', text: applied === 'cloud'
+                ? `Mode Cloud: ${next.cloudModel}. ${next.hasGeminiKey ? 'API key tersimpan di perangkat ini.' : 'Masukkan API key lalu Save.'}`
+                : `Mode Local: ${next.localModel}. Ollama ${next.ollamaUp ? 'terhubung' : 'tidak terdeteksi'}.`}]);
+        } catch (error) {
+            reportError('AI mode change failed', error);
+            setMessages((prev) => [...prev, {role: 'error', text: `Mode change failed: ${formatError(error)}`}]);
+        }
     }
 
     async function saveKey() {
@@ -111,10 +116,14 @@ export function ChatPanel() {
         if (!key) {
             return;
         }
-        await SetGeminiAPIKey(key);
-        setKeyDraft('');
-        setKeySaved(true);
-        await refreshStatus();
+        try {
+            await SetGeminiAPIKey(key);
+            setKeyDraft('');
+            setKeySaved(true);
+            await refreshStatus();
+        } catch (error) {
+            reportError('Gemini API key could not be saved', error);
+        }
     }
 
     async function send(event?: FormEvent) {
@@ -139,7 +148,8 @@ export function ChatPanel() {
                 {role: 'assistant', text: reply.text || '(empty)'},
             ]);
         } catch (err) {
-            setMessages((prev) => [...prev, {role: 'error', text: String(err)}]);
+            reportError('AI request failed', err);
+            setMessages((prev) => [...prev, {role: 'error', text: `AI unavailable: ${formatError(err)}. Your editor remains available.`}]);
         } finally {
             setBusy(false);
             setBusyLabel('Thinking…');
@@ -147,8 +157,12 @@ export function ChatPanel() {
     }
 
     async function resetChat() {
-        await ClearChat();
-        setMessages([{role: 'system', text: 'Riwayat percakapan direset.'}]);
+        try {
+            await ClearChat();
+            setMessages([{role: 'system', text: 'Riwayat percakapan direset.'}]);
+        } catch (error) {
+            reportError('Chat reset failed', error);
+        }
     }
 
     function exportChat() {

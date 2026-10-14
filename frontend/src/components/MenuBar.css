@@ -103,3 +103,31 @@
     background: #2a3546;
     margin: 3px 8px;
 }
+
+.menu-dropdown-item.has-submenu {
+    position: relative;
+}
+
+.menu-dropdown-item.has-submenu .dropdown-arrow {
+    opacity: 0.6;
+    margin-left: auto;
+}
+
+.menu-dropdown-item.has-submenu:hover > .menu-submenu {
+    display: block;
+}
+
+.menu-submenu {
+    display: none;
+    position: absolute;
+    top: -4px;
+    left: 100%;
+    min-width: 220px;
+    max-width: 340px;
+    background: #1b2432;
+    border: 1px solid #2a3546;
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    z-index: 1002;
+    padding: 4px 0;
+}

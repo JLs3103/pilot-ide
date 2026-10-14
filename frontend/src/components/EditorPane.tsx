@@ -2,6 +2,7 @@ import {useRef, useCallback, useEffect, useState} from 'react';
 import Editor, {OnMount} from '@monaco-editor/react';
 import {languageFromPath} from '../lib/language';
 import {getFileIcon} from '../lib/fileIcons';
+import type {EditorSettings} from './SettingsPanel';
 import {X, ChevronLeft, ChevronRight} from 'lucide-react';
 import './EditorPane.css';
 
@@ -21,6 +22,7 @@ type Props = {
     onSave: (index: number) => void;
     onEditorMount?: (editor: any) => void;
     onCursorChange?: (line: number, col: number) => void;
+    editorSettings?: EditorSettings;
 };
 
 export function EditorPane({
@@ -32,6 +34,7 @@ export function EditorPane({
     onSave,
     onEditorMount,
     onCursorChange,
+    editorSettings,
 }: Props) {
     const tabBarRef = useRef<HTMLDivElement>(null);
     const editorInstanceRef = useRef<any>(null);
@@ -222,17 +225,86 @@ export function EditorPane({
                 <div className="editor-host">
                     <Editor
                         height="100%"
-                        theme="vs-dark"
+                        theme={editorSettings?.theme ?? 'vs-dark'}
                         path={activeTab.path}
                         language={languageFromPath(activeTab.path)}
                         value={activeTab.value}
                         onChange={(next) => onChangeContent(activeTabIndex, next ?? '')}
                         onMount={handleMount}
                         options={{
-                            minimap: {enabled: true},
-                            fontSize: 13,
+                            minimap: {enabled: editorSettings?.minimap ?? true},
+                            fontSize: editorSettings?.fontSize ?? 13,
+                            tabSize: editorSettings?.tabSize ?? 4,
+                            lineHeight: editorSettings?.lineHeight ?? 1.6,
                             automaticLayout: true,
-                            wordWrap: 'on',
+                            wordWrap: editorSettings?.wordWrap ?? 'on',
+                            suggestOnTriggerCharacters: true,
+                            quickSuggestions: {
+                                other: true,
+                                comments: false,
+                                strings: true,
+                            },
+                            acceptSuggestionOnEnter: 'on',
+                            parameterHints: {enabled: true},
+                            hover: {enabled: true, delay: 300} as any,
+                            bracketPairColorization: {enabled: true},
+                            matchBrackets: 'always' as const,
+                            guides: {
+                                bracketPairs: true,
+                                indentation: true,
+                                highlightActiveIndentation: true,
+                                bracketPairsHorizontal: true,
+                            },
+                            autoClosingBrackets: 'always' as const,
+                            autoClosingQuotes: 'always' as const,
+                            autoClosingOvertype: 'always' as const,
+                            autoSurround: 'brackets' as const,
+                            autoIndent: 'advanced' as const,
+                            formatOnPaste: true,
+                            linkedEditing: true,
+                            snippetSuggestions: 'top' as const,
+                            suggest: {
+                                showKeywords: true,
+                                showSnippets: true,
+                                showClasses: true,
+                                showFunctions: true,
+                                showVariables: true,
+                                showModules: true,
+                                showProperties: true,
+                                showInterfaces: true,
+                                showConstants: true,
+                                showEnums: true,
+                                showConstructors: true,
+                                showFields: true,
+                                showMethods: true,
+                                showStructs: true,
+                                showTypeParameters: true,
+                                showColors: true,
+                                showFiles: true,
+                                showFolders: true,
+                                showValues: true,
+                                showWords: true,
+                                insertMode: 'replace' as const,
+                                filterGraceful: true,
+                                showStatusBar: true,
+                                preview: true,
+                                previewMode: 'prefix' as const,
+                            },
+                            smoothScrolling: true,
+                            stickyScroll: {enabled: true},
+                            cursorBlinking: 'smooth' as const,
+                            cursorSmoothCaretAnimation: 'on' as const,
+                            renderWhitespace: 'selection' as const,
+                            renderLineHighlight: 'all' as const,
+                            folding: true,
+                            foldingStrategy: 'auto' as const,
+                            showFoldingControls: 'mouseover' as const,
+                            codeLens: true,
+                            find: {
+                                addExtraSpaceOnTop: true,
+                                autoFindInSelection: 'multiline' as const,
+                                seedSearchStringFromSelection: 'always' as const,
+                            },
                         }}
                     />
                 </div>

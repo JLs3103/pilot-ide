@@ -11,6 +11,7 @@ type Props = {
     aiPanelVisible: boolean;
     terminalVisible: boolean;
     dirty: boolean;
+    saveStatus: 'saved' | 'saving' | 'recovery' | 'error';
     onToggleTerminal: () => void;
     onToggleAiPanel: () => void;
     onGoToLine: () => void;
@@ -26,6 +27,7 @@ export function StatusBar({
     aiPanelVisible,
     terminalVisible,
     dirty,
+    saveStatus,
     onToggleTerminal,
     onToggleAiPanel,
     onGoToLine,
@@ -49,6 +51,9 @@ export function StatusBar({
                         {dirty && <span className="status-dirty">●</span>}
                     </span>
                 )}
+                <span className={`status-item status-save status-save-${saveStatus}`} title="Autosave status">
+                    {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'recovery' ? 'Recovery available' : saveStatus === 'error' ? 'Save failed' : 'Saved'}
+                </span>
             </div>
             <div className="status-bar-right">
                 {fileName && (

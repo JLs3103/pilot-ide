@@ -102,20 +102,26 @@ function PythonIcon() {
 
 function GoIcon() {
     return (
-        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none">
-            <path d="M2 7.5C2 7.5 2.5 7 3.5 7C4.5 7 5 7.5 5 7.5" stroke="#00add8" strokeWidth="1.2" strokeLinecap="round" />
-            <ellipse cx="8" cy="8.5" rx="3.5" ry="3" fill="#00add8" />
-            <ellipse cx="8" cy="8.5" rx="2" ry="1.5" fill="#fff" />
-            <circle cx="8.5" cy="8.2" r="0.7" fill="#00add8" />
-            <path d="M11 7.5C11 7.5 11.5 7 12.5 7C13.5 7 14 7.5 14 7.5" stroke="#00add8" strokeWidth="1.2" strokeLinecap="round" />
-            <path d="M1 5.5L3 5L5 5.5" stroke="#00add8" strokeWidth="0.8" strokeLinecap="round" />
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <rect x="1" y="2" width="14" height="12" rx="2.5" fill="#00add8" />
+            <path d="M5.5 5.8C5.1 5.3 4.5 5 3.8 5C2.6 5 1.7 6 1.7 7.3C1.7 8.6 2.6 9.6 3.8 9.6C4.7 9.6 5.3 9.1 5.6 8.4H3.7V7.3H6.7C6.7 8.7 5.5 10.7 3.8 10.7C1.9 10.7 0.5 9.2 0.5 7.3C0.5 5.4 1.9 3.9 3.8 3.9C5 3.9 5.9 4.4 6.5 5.2L5.5 5.8Z" fill="white" transform="translate(1, 0.5)" />
+            <path d="M10.2 3.9C8.3 3.9 6.9 5.4 6.9 7.3C6.9 9.2 8.3 10.7 10.2 10.7C12.1 10.7 13.5 9.2 13.5 7.3C13.5 5.4 12.1 3.9 10.2 3.9ZM10.2 9.6C9 9.6 8.1 8.6 8.1 7.3C8.1 6 9 5 10.2 5C11.4 5 12.3 6 12.3 7.3C12.3 8.6 11.4 9.6 10.2 9.6Z" fill="white" transform="translate(0.5, 0.5)" />
+        </svg>
+    );
+}
+
+function GoModIcon() {
+    return (
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <rect x="1" y="2" width="14" height="12" rx="2.5" fill="#00add8" />
+            <text x="8" y="10.5" textAnchor="middle" fill="white" fontSize="6.5" fontWeight="900" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="0.5">MOD</text>
         </svg>
     );
 }
 
 function RustIcon() {
     return (
-        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none">
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
             <circle cx="8" cy="8" r="6" stroke="#dea584" strokeWidth="1.3" />
             <path d="M5 10V6.5C5 6 5.5 5.5 6 5.5H7C7.5 5.5 8 6 8 6.5V7.5C8 7 8.5 7 9 7H10" stroke="#dea584" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M8 7.5V10" stroke="#dea584" strokeWidth="1.2" strokeLinecap="round" />
@@ -125,22 +131,30 @@ function RustIcon() {
     );
 }
 
+function CHeaderIcon() {
+    return (
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="#a074c4" />
+            <path d="M5 4.5V11.5H6.5V8.8H9.5V11.5H11V4.5H9.5V7.4H6.5V4.5H5Z" fill="white" />
+        </svg>
+    );
+}
+
 function CIcon() {
     return (
-        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6.5" fill="#a8b9cc" />
-            <path d="M10.5 5.5C10 4.8 9.1 4.3 8 4.3C6 4.3 4.3 5.9 4.3 8C4.3 10.1 6 11.7 8 11.7C9.1 11.7 10 11.2 10.5 10.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="#5599dd" />
+            <path d="M10.8 6.2C10.4 5.4 9.5 4.8 8.4 4.8C6.6 4.8 5.2 6.2 5.2 8C5.2 9.8 6.6 11.2 8.4 11.2C9.5 11.2 10.4 10.6 10.8 9.8L9.5 9.1C9.3 9.6 8.9 9.9 8.4 9.9C7.4 9.9 6.6 9.1 6.6 8C6.6 6.9 7.4 6.1 8.4 6.1C8.9 6.1 9.3 6.4 9.5 6.9L10.8 6.2Z" fill="white" />
         </svg>
     );
 }
 
 function CppIcon() {
     return (
-        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6.5" fill="#00599c" />
-            <path d="M9 5C8.5 4.3 7.6 3.8 6.5 3.8C4.8 3.8 3.3 5.4 3.3 7.5C3.3 9.6 4.8 11.2 6.5 11.2C7.6 11.2 8.5 10.7 9 10" stroke="white" strokeWidth="1.3" strokeLinecap="round" />
-            <path d="M10.5 7H12.5M11.5 6V8" stroke="white" strokeWidth="1" strokeLinecap="round" />
-            <path d="M13 7H14.5M13.75 6V8" stroke="white" strokeWidth="1" strokeLinecap="round" />
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="#00599c" />
+            <path d="M7.8 6.2C7.5 5.5 6.8 5 6 5C4.7 5 3.6 6.1 3.6 7.5C3.6 8.9 4.7 10 6 10C6.8 10 7.5 9.5 7.8 8.8L6.8 8.3C6.6 8.7 6.3 8.9 6 8.9C5.3 8.9 4.7 8.3 4.7 7.5C4.7 6.7 5.3 6.1 6 6.1C6.3 6.1 6.6 6.3 6.8 6.7L7.8 6.2Z" fill="white" />
+            <path d="M9 7.5H11M10 6.5V8.5M12 7.5H14M13 6.5V8.5" stroke="white" strokeWidth="1.1" strokeLinecap="round" />
         </svg>
     );
 }
@@ -238,17 +252,17 @@ function RubyIcon() {
 
 function PhpIcon() {
     return (
-        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none">
-            <ellipse cx="8" cy="8" rx="7" ry="5" fill="#777bb3" />
-            <path d="M4.5 6.5H6C6.8 6.5 7 7 7 7.5C7 8 6.8 8.5 6 8.5H5L4.8 10" stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M8 6.5H9.5C10.3 6.5 10.5 7 10.5 7.5C10.5 8 10.3 8.5 9.5 8.5H8.5L8.3 10" stroke="white" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" />
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <ellipse cx="8" cy="8" rx="7.2" ry="4.8" fill="#777bb3" />
+            <ellipse cx="8" cy="8" rx="6.5" ry="4.2" stroke="#4f5b93" strokeWidth="0.7" />
+            <text x="8" y="10.2" textAnchor="middle" fill="white" fontSize="5.8" fontWeight="bold" fontFamily="monospace, sans-serif" letterSpacing="0.2">php</text>
         </svg>
     );
 }
 
 function SwiftIcon() {
     return (
-        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none">
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
             <rect x="1" y="1" width="14" height="14" rx="3" fill="#f05138" />
             <path d="M4 10C4 10 8 8 6 5C6 5 9 7.5 7.5 9.5C7.5 9.5 10.5 7 10 4C10 4 13 7 10 11C10 11 12 11.5 13 10.5" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -257,10 +271,20 @@ function SwiftIcon() {
 
 function DartIcon() {
     return (
-        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none">
-            <path d="M4 2L2 4V12L4 14H12L14 12V6L12 2H4Z" fill="#00b4ab" />
-            <path d="M4 2L8 8L4 14" stroke="white" strokeWidth="0.8" opacity="0.5" />
-            <path d="M8 8L14 6" stroke="white" strokeWidth="0.8" opacity="0.5" />
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <path d="M2.5 7.5L8.5 1.5H13.5L7.5 7.5L13.5 13.5H8.5L2.5 7.5Z" fill="#0175c2" />
+            <path d="M2.5 7.5L8.5 1.5H13.5L8 7L2.5 7.5Z" fill="#00b4ab" />
+            <path d="M5.5 10.5L8.5 13.5H13.5L10 10L5.5 10.5Z" fill="#53b8f6" />
+            <path d="M5 8L8 11L12.5 6.5L9.5 3.5L5 8Z" fill="#40c4ff" opacity="0.9" />
+        </svg>
+    );
+}
+
+function MakefileIcon() {
+    return (
+        <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 16 16" fill="none" shapeRendering="geometricPrecision">
+            <path d="M7 1.5H9L9.3 3.2C9.7 3.4 10.1 3.6 10.5 3.9L12 3.1L13.4 4.5L12.6 6C12.9 6.4 13.1 6.8 13.3 7.2L15 7.5V9.5L13.3 9.8C13.1 10.2 12.9 10.6 12.6 11L13.4 12.5L12 13.9L10.5 13.1C10.1 13.4 9.7 13.6 9.3 13.8L9 15.5H7L6.7 13.8C6.3 13.6 5.9 13.4 5.5 13.1L4 13.9L2.6 12.5L3.4 11C3.1 10.6 2.9 10.2 2.7 9.8L1 9.5V7.5L2.7 7.2C2.9 6.8 3.1 6.4 3.4 6L2.6 4.5L4 3.1L5.5 3.9C5.9 3.6 6.3 3.4 6.7 3.2L7 1.5Z" fill="#e37933" />
+            <circle cx="8" cy="8.5" r="2.2" fill="#1b2432" />
         </svg>
     );
 }
@@ -562,6 +586,8 @@ function getExtensionIcon(ext: string): IconDef | null {
 
         case '.go':
             return { icon: <GoIcon />, color: colors.go };
+        case '.mod':
+            return { icon: <GoModIcon />, color: colors.go };
 
         case '.py':
         case '.pyw':
@@ -572,12 +598,15 @@ function getExtensionIcon(ext: string): IconDef | null {
             return { icon: <RustIcon />, color: colors.rust };
 
         case '.c':
-        case '.h':
             return { icon: <CIcon />, color: colors.c };
+        case '.h':
+        case '.hpp':
+        case '.hxx':
+        case '.hh':
+            return { icon: <CHeaderIcon />, color: '#a074c4' };
         case '.cpp':
         case '.cc':
         case '.cxx':
-        case '.hpp':
             return { icon: <CppIcon />, color: colors.cpp };
         case '.cs':
             return { icon: <CSharpIcon />, color: colors.csharp };
@@ -592,6 +621,7 @@ function getExtensionIcon(ext: string): IconDef | null {
         case '.erb':
             return { icon: <RubyIcon />, color: colors.ruby };
         case '.php':
+        case '.phtml':
             return { icon: <PhpIcon />, color: colors.php };
         case '.swift':
             return { icon: <SwiftIcon />, color: colors.swift };
@@ -599,6 +629,10 @@ function getExtensionIcon(ext: string): IconDef | null {
             return { icon: <DartIcon />, color: colors.dart };
         case '.lua':
             return { icon: <LuaIcon />, color: colors.lua };
+
+        case '.mk':
+        case '.mak':
+            return { icon: <MakefileIcon />, color: '#e37933' };
 
         case '.html':
         case '.htm':
@@ -720,8 +754,15 @@ function getSpecialFileIcon(name: string): IconDef | null {
             return { icon: <LockIcon />, color: '#aaa' };
 
         case 'go.mod':
+            return { icon: <GoModIcon />, color: colors.go };
         case 'go.sum':
+        case 'go.work':
             return { icon: <GoIcon />, color: colors.go };
+
+        case 'makefile':
+        case 'gnumakefile':
+        case 'kbuild':
+            return { icon: <MakefileIcon />, color: '#e37933' };
 
         case 'cargo.toml':
         case 'cargo.lock':

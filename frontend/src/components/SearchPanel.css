@@ -1,0 +1,254 @@
+.search-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #121821;
+    overflow: hidden;
+}
+
+.search-panel-header {
+    padding: 8px 10px 4px;
+    border-bottom: 1px solid #2a3546;
+}
+
+.search-panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: #9aa8bb;
+}
+
+.search-inputs {
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.search-input-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.search-toggle-replace {
+    background: none;
+    border: none;
+    color: #8ea0b5;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.search-toggle-replace:hover {
+    background: #253044;
+}
+
+.search-input-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    background: #0f151e;
+    border: 1px solid #2a3546;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.search-input-wrapper:focus-within {
+    border-color: #5cb3ff;
+}
+
+.search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #e8edf4;
+    font-size: 12px;
+    padding: 4px 6px;
+    outline: none;
+    font-family: inherit;
+    min-width: 0;
+}
+
+.search-input::placeholder {
+    color: #5c6d80;
+}
+
+.search-input-actions {
+    display: flex;
+    gap: 1px;
+    padding-right: 2px;
+    flex-shrink: 0;
+}
+
+.search-option-btn {
+    background: none;
+    border: none;
+    color: #6a7d90;
+    cursor: pointer;
+    padding: 3px 4px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: inherit;
+    transition: all 0.12s ease;
+}
+
+.search-option-btn:hover {
+    background: #253044;
+    color: #afc3d8;
+}
+
+.search-option-btn.active {
+    background: #2b4d78;
+    color: #5cb3ff;
+}
+
+.search-filters-toggle {
+    padding-left: 22px;
+}
+
+.search-filter-row {
+    padding-left: 22px;
+}
+
+.search-filter-row .search-input {
+    background: #0f151e;
+    border: 1px solid #2a3546;
+    border-radius: 4px;
+    padding: 3px 6px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.search-filter-row .search-input:focus {
+    border-color: #5cb3ff;
+}
+
+.search-error {
+    color: #ff8e8e;
+    font-size: 11px;
+    padding: 4px 10px;
+}
+
+.search-results-info {
+    font-size: 11px;
+    color: #8ea0b5;
+    padding: 4px 10px;
+    border-bottom: 1px solid #1e2838;
+}
+
+.search-results {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.search-result-group {
+    border-bottom: 1px solid #1a2233;
+}
+
+.search-result-file {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 4px 8px;
+    background: #161e2a;
+    border: none;
+    color: #c5d2e2;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.1s;
+}
+
+.search-result-file:hover {
+    background: #1e2d40;
+}
+
+.search-result-filename {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-result-count {
+    font-size: 10px;
+    background: #2b4d78;
+    color: #8ec4ff;
+    padding: 0 5px;
+    border-radius: 8px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.search-replace-file-btn {
+    background: none;
+    border: none;
+    color: #6a7d90;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+}
+
+.search-replace-file-btn:hover {
+    background: #253044;
+    color: #5cb3ff;
+}
+
+.search-result-match {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+    padding: 2px 8px 2px 28px;
+    background: transparent;
+    border: none;
+    color: #a0b0c0;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'Consolas', 'Courier New', monospace;
+    line-height: 1.5;
+    transition: background 0.1s;
+}
+
+.search-result-match:hover {
+    background: #1e2d40;
+}
+
+.search-match-line {
+    color: #6a7d90;
+    flex-shrink: 0;
+    min-width: 32px;
+    text-align: right;
+    font-size: 11px;
+}
+
+.search-match-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+.search-match-text mark {
+    background: #6b4f18;
+    color: #ffd580;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.replace-row {
+    margin-top: 2px;
+}

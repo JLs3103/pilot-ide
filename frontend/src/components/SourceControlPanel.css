@@ -1,0 +1,364 @@
+.scm-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #121821;
+    overflow: hidden;
+}
+
+.scm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px 4px;
+    border-bottom: 1px solid #2a3546;
+}
+
+.scm-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: #9aa8bb;
+}
+
+.scm-header-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.scm-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #8ea0b5;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.12s ease;
+    font-size: 13px;
+}
+
+.scm-icon-btn:hover {
+    background: #253044;
+    color: #5cb3ff;
+}
+
+.scm-icon-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* Branch bar */
+.scm-branch-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-bottom: 1px solid #1e2838;
+}
+
+.scm-branch-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: 1px solid #2a3546;
+    border-radius: 4px;
+    color: #c5d2e2;
+    padding: 3px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.12s;
+}
+
+.scm-branch-btn:hover {
+    background: #1e2d40;
+    border-color: #3d5070;
+}
+
+.scm-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.scm-branch-list {
+    padding: 4px;
+    border-bottom: 1px solid #1e2838;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.scm-branch-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 4px 8px;
+    background: none;
+    border: none;
+    color: #c5d2e2;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    border-radius: 3px;
+    transition: background 0.1s;
+}
+
+.scm-branch-item:hover {
+    background: #1e2d40;
+}
+
+.scm-branch-item.current {
+    color: #5cb3ff;
+    cursor: default;
+}
+
+.scm-error {
+    color: #ff8e8e;
+    font-size: 11px;
+    padding: 4px 10px;
+    word-break: break-word;
+}
+
+/* Commit area */
+.scm-commit-area {
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-bottom: 1px solid #1e2838;
+}
+
+.scm-commit-input {
+    background: #0f151e;
+    border: 1px solid #2a3546;
+    border-radius: 4px;
+    color: #e8edf4;
+    font-size: 12px;
+    padding: 6px 8px;
+    outline: none;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 36px;
+}
+
+.scm-commit-input:focus {
+    border-color: #5cb3ff;
+}
+
+.scm-commit-input::placeholder {
+    color: #5c6d80;
+}
+
+.scm-commit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 5px 12px;
+    background: #2b4d78;
+    color: #e8edf4;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.scm-commit-btn:hover:not(:disabled) {
+    background: #3766a0;
+}
+
+.scm-commit-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* Sections */
+.scm-section {
+    border-bottom: 1px solid #1a2233;
+}
+
+.scm-section-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 5px 8px;
+    background: #161e2a;
+    border: none;
+    color: #c5d2e2;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    text-transform: uppercase;
+    transition: background 0.1s;
+}
+
+.scm-section-header:hover {
+    background: #1e2d40;
+}
+
+.scm-section-count {
+    font-size: 10px;
+    background: #2b4d78;
+    color: #8ec4ff;
+    padding: 0 5px;
+    border-radius: 8px;
+    margin-left: auto;
+}
+
+.scm-section-action {
+    background: none;
+    border: none;
+    color: #6a7d90;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    margin-left: 4px;
+}
+
+.scm-section-action:hover {
+    background: #253044;
+    color: #5cb3ff;
+}
+
+/* File items */
+.scm-file-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px 2px 20px;
+    font-size: 12px;
+    color: #a0b0c0;
+    transition: background 0.1s;
+}
+
+.scm-file-item:hover {
+    background: #1e2d40;
+}
+
+.scm-file-action {
+    background: none;
+    border: none;
+    color: #6a7d90;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.scm-file-action:hover {
+    background: #253044;
+    color: #5cb3ff;
+}
+
+.scm-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scm-file-status {
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Diff area */
+.scm-diff-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #2a3546;
+    min-height: 100px;
+}
+
+.scm-diff-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: #161e2a;
+    font-size: 11px;
+    color: #9aa8bb;
+    border-bottom: 1px solid #1e2838;
+}
+
+.scm-diff-content {
+    flex: 1;
+    overflow: auto;
+    padding: 8px;
+    font-size: 11px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    color: #c5d2e2;
+    margin: 0;
+    white-space: pre;
+    line-height: 1.5;
+}
+
+/* Log area */
+.scm-log-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #2a3546;
+    min-height: 100px;
+}
+
+.scm-log-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.scm-log-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-bottom: 1px solid #1a2233;
+}
+
+.scm-log-item:hover {
+    background: #1e2d40;
+}
+
+.scm-log-hash {
+    color: #e5c07b;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.scm-log-msg {
+    color: #c5d2e2;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scm-log-meta {
+    color: #6a7d90;
+    font-size: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}

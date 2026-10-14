@@ -28,7 +28,8 @@ import {
     Hash,
     Split,
     Plus,
-    Command
+    Command,
+    ChevronRight
 } from 'lucide-react';
 import './MenuBar.css';
 
@@ -38,6 +39,7 @@ type MenuItem = {
     shortcut?: string;
     action?: () => void;
     separator?: boolean;
+    submenu?: MenuItem[];
 };
 
 type MenuBarProps = {
@@ -64,6 +66,9 @@ type MenuBarProps = {
     onSelectAll?: () => void;
     onGoToLine?: () => void;
     onCommandPalette?: () => void;
+    recentProjects?: Array<{path: string; name: string}>;
+    onOpenRecentProject?: (path: string) => void;
+    onClearRecentProjects?: () => void;
 };
 
 export function MenuBar({
@@ -73,6 +78,7 @@ export function MenuBar({
     onZoomIn, onZoomOut,
     onUndo, onRedo, onCut, onCopy, onPaste, onFind, onReplace, onSelectAll,
     onGoToLine, onCommandPalette,
+    recentProjects, onOpenRecentProject, onClearRecentProjects,
 }: MenuBarProps) {
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
@@ -82,7 +88,27 @@ export function MenuBar({
             icon: <FileText size={16} />,
             items: [
                 { label: 'New File', icon: <Plus size={14} />, shortcut: 'Ctrl+N', action: onNewFile },
-                { label: 'Open Project', icon: <FolderOpen size={14} />, shortcut: 'Ctrl+O', action: onOpenProject },
+                { label: 'Open Project...', icon: <FolderOpen size={14} />, shortcut: 'Ctrl+O', action: onOpenProject },
+                {
+                    label: 'Open Recent',
+                    icon: <Layers size={14} />,
+                    submenu: recentProjects && recentProjects.length > 0 ? [
+                        ...recentProjects.map(p => ({
+                            label: p.name,
+                            icon: <FolderOpen size={13} />,
+                            shortcut: p.path.length > 30 ? '...' + p.path.slice(-27) : p.path,
+                            action: () => onOpenRecentProject && onOpenRecentProject(p.path),
+                        })),
+                        { label: 'separator', separator: true },
+                        {
+                            label: 'Clear Recently Opened',
+                            icon: <X size={13} />,
+                            action: onClearRecentProjects,
+                        },
+                    ] : [
+                        { label: 'No Recent Projects', action: () => {} },
+                    ],
+                },
                 { label: 'separator', separator: true },
                 { label: 'Save', icon: <Save size={14} />, shortcut: 'Ctrl+S', action: onSave },
                 { label: 'Save As', icon: <Save size={14} />, shortcut: 'Ctrl+Shift+S', action: onSaveAs },
@@ -201,6 +227,39 @@ export function MenuBar({
                             {menu.items.map((item, index) => {
                                 if (item.separator) {
                                     return <div key={`sep-${index}`} className="menu-dropdown-separator" />;
+                                }
+                                if (item.submenu) {
+                                    return (
+                                        <div
+                                            key={index}
+                                            className="menu-dropdown-item has-submenu"
+                                        >
+                                            <span className="dropdown-icon">{item.icon}</span>
+                                            <span className="dropdown-label">{item.label}</span>
+                                            <ChevronRight size={12} className="dropdown-arrow" />
+                                            <div className="menu-submenu">
+                                                {item.submenu.map((sub, sIdx) => {
+                                                    if (sub.separator) {
+                                                        return <div key={`s-sep-${sIdx}`} className="menu-dropdown-separator" />;
+                                                    }
+                                                    return (
+                                                        <div
+                                                            key={`s-${sIdx}`}
+                                                            className="menu-dropdown-item"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleMenuItemClick(sub);
+                                                            }}
+                                                            title={sub.shortcut ? sub.shortcut : undefined}
+                                                        >
+                                                            {sub.icon && <span className="dropdown-icon">{sub.icon}</span>}
+                                                            <span className="dropdown-label">{sub.label}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
                                 }
                                 return (
                                     <div

@@ -119,6 +119,8 @@
     padding-right: 8px;
     transition: background 0.1s ease;
     font-family: inherit;
+    content-visibility: auto;
+    contain-intrinsic-size: 22px;
 }
 
 .tree-item:hover {
@@ -169,6 +171,9 @@
 
 .tree-icon svg {
     display: block;
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
+    image-rendering: -webkit-optimize-contrast;
 }
 
 .tree-name {
@@ -248,4 +253,51 @@
     font-family: inherit;
     min-width: 0;
     line-height: 20px;
+}
+
+.tree-name.git-file-modified,
+.tree-name.git-folder-modified {
+    color: #e2c08d;
+}
+
+.tree-name.git-file-untracked,
+.tree-name.git-folder-untracked,
+.tree-name.git-file-added {
+    color: #73c991;
+}
+
+.tree-name.git-file-deleted {
+    color: #e06c75;
+    text-decoration: line-through;
+}
+
+.tree-name.git-file-renamed {
+    color: #61afef;
+}
+
+.tree-git-badge {
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: auto;
+    margin-right: 6px;
+    line-height: 1;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.tree-git-badge.git-file-modified {
+    color: #e2c08d;
+}
+
+.tree-git-badge.git-file-untracked,
+.tree-git-badge.git-file-added {
+    color: #73c991;
+}
+
+.tree-git-badge.git-file-deleted {
+    color: #e06c75;
+}
+
+.tree-git-badge.git-file-renamed {
+    color: #61afef;
 }

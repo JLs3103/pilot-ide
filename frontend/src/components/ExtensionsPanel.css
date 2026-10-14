@@ -1,0 +1,308 @@
+.extensions-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    color: #ccc;
+}
+
+.extensions-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #888;
+    border-bottom: 1px solid #2a2a2a;
+    user-select: none;
+}
+
+.extensions-title {
+    text-transform: uppercase;
+}
+
+.extensions-tabs {
+    display: flex;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.ext-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 8px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 11px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.ext-tab:hover {
+    color: #ccc;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.ext-tab.active {
+    color: #e0e0e0;
+    border-bottom-color: #0078d4;
+}
+
+.extensions-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.extension-card {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #2a2a2a;
+    transition: all 0.15s ease;
+}
+
+.extension-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: #3a3a3a;
+}
+
+.extension-card.disabled {
+    opacity: 0.5;
+}
+
+.ext-card-icon {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 120, 212, 0.12);
+    border-radius: 6px;
+    color: #4da6ff;
+}
+
+.ext-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ext-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+}
+
+.ext-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.ext-card-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(0, 120, 212, 0.15);
+    color: #6bb5ff;
+    font-weight: 500;
+}
+
+.ext-card-desc {
+    font-size: 11px;
+    color: #888;
+    margin: 0 0 6px;
+    line-height: 1.4;
+}
+
+.ext-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ext-card-tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #777;
+}
+
+.ext-toggle-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s ease;
+}
+
+.ext-toggle-btn.on {
+    color: #4caf50;
+}
+
+.ext-toggle-btn.off {
+    color: #666;
+}
+
+.ext-toggle-btn:hover {
+    opacity: 0.8;
+}
+
+.ext-summary {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 6px;
+    font-size: 11px;
+    color: #4caf50;
+    border-top: 1px solid #2a2a2a;
+    margin-top: 4px;
+}
+
+.extensions-project-settings {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.ext-no-project {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 16px;
+    text-align: center;
+}
+
+.ext-no-project p {
+    font-size: 12px;
+    color: #777;
+    margin: 0;
+}
+
+.ext-settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ext-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    border: 1px solid #2a2a2a;
+}
+
+.ext-setting-row label {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.ext-init-section {
+    padding: 12px;
+    background: rgba(0, 120, 212, 0.06);
+    border-radius: 6px;
+    border: 1px solid rgba(0, 120, 212, 0.15);
+}
+
+.ext-init-desc {
+    font-size: 11px;
+    color: #888;
+    margin: 0 0 10px;
+    line-height: 1.4;
+}
+
+.ext-init-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background: #0078d4;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.ext-init-btn:hover:not(:disabled) {
+    background: #006cbd;
+}
+
+.ext-init-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.ext-exclude-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.ext-exclude-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #999;
+    font-family: monospace;
+}
+
+.ext-config-path {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: #666;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.ext-refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    align-self: flex-start;
+}
+
+.ext-refresh-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #444;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}

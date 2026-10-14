@@ -2,7 +2,8 @@ import {useState, useEffect, useRef, useCallback, useMemo} from 'react';
 import {
     Save, FolderOpen, X, Search, Replace, Undo, Redo,
     Eye, Terminal, Bot, ZoomIn, ZoomOut, Plus, FileText,
-    Scissors, Copy, Clipboard, CheckSquare, Hash, Layers
+    Scissors, Copy, Clipboard, CheckSquare, Hash, Layers,
+    FileCode, ToggleRight
 } from 'lucide-react';
 import './CommandPalette.css';
 
@@ -160,6 +161,11 @@ export function buildDefaultCommands(actions: {
     selectAll?: () => void;
     zoomIn?: () => void;
     zoomOut?: () => void;
+    formatDocument?: () => void;
+    toggleFormatOnSave?: () => void;
+    openRecentProject?: (path: string) => void;
+    clearRecentProjects?: () => void;
+    recentProjects?: Array<{path: string; name: string}>;
 }): PaletteCommand[] {
     const cmds: PaletteCommand[] = [];
     const add = (id: string, label: string, shortcut: string, icon: React.ReactNode, cat: string, action?: () => void) => {
@@ -168,6 +174,14 @@ export function buildDefaultCommands(actions: {
     add('save', 'File: Save', 'Ctrl+S', <Save size={14} />, 'File', actions.save);
     add('saveAs', 'File: Save As', 'Ctrl+Shift+S', <Save size={14} />, 'File', actions.saveAs);
     add('openProject', 'File: Open Project', 'Ctrl+O', <FolderOpen size={14} />, 'File', actions.openProject);
+    if (actions.recentProjects && actions.recentProjects.length > 0 && actions.openRecentProject) {
+        actions.recentProjects.forEach((p, i) => {
+            add(`recentProject_${i}`, `File: Open Recent - ${p.name}`, '', <FolderOpen size={14} />, 'File', () => actions.openRecentProject!(p.path));
+        });
+    }
+    if (actions.clearRecentProjects) {
+        add('clearRecentProjects', 'File: Clear Recent Projects List', '', <X size={14} />, 'File', actions.clearRecentProjects);
+    }
     add('closeTab', 'File: Close Tab', 'Ctrl+W', <X size={14} />, 'File', actions.closeTab);
     add('newFile', 'File: New File', 'Ctrl+N', <Plus size={14} />, 'File', actions.newFile);
     add('find', 'Edit: Find', 'Ctrl+F', <Search size={14} />, 'Edit', actions.find);
@@ -184,5 +198,8 @@ export function buildDefaultCommands(actions: {
     add('toggleAiPanel', 'View: Toggle AI Panel', 'Ctrl+Shift+M', <Bot size={14} />, 'View', actions.toggleAiPanel);
     add('zoomIn', 'View: Zoom In', 'Ctrl++', <ZoomIn size={14} />, 'View', actions.zoomIn);
     add('zoomOut', 'View: Zoom Out', 'Ctrl+-', <ZoomOut size={14} />, 'View', actions.zoomOut);
+    add('formatDocument', 'Format: Format Document', 'Shift+Alt+F', <FileCode size={14} />, 'Format', actions.formatDocument);
+    add('toggleFormatOnSave', 'Format: Toggle Format on Save', '', <ToggleRight size={14} />, 'Format', actions.toggleFormatOnSave);
     return cmds;
 }
+

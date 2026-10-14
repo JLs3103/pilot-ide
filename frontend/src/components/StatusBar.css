@@ -67,6 +67,14 @@
     margin-left: 2px;
 }
 
+.status-save {
+    font-size: 11px;
+}
+
+.status-save-saving { color: #ffe08a; }
+.status-save-recovery { color: #9fe3b1; }
+.status-save-error { color: #ffb0b0; }
+
 .status-ai.active {
     background: rgba(255, 255, 255, 0.08);
 }

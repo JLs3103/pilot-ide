@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -108,6 +109,29 @@ func (a *App) OpenProject() (string, error) {
 	runtime.WindowSetTitle(a.ctx, "Pilot IDE — "+dir)
 	a.persist(a.store.SaveProjectRoot(dir))
 	a.startWatcher(dir)
+	a.addRecentProject(dir)
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "project:opened", dir)
+	}
+	return dir, nil
+}
+
+func (a *App) OpenProjectPath(dir string) (string, error) {
+	if dir == "" {
+		return "", fmt.Errorf("path is empty")
+	}
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return "", fmt.Errorf("directory does not exist or is not a directory")
+	}
+	a.projectRoot = dir
+	a.terminalMu.Lock()
+	a.terminalCwd = dir
+	a.terminalMu.Unlock()
+	runtime.WindowSetTitle(a.ctx, "Pilot IDE — "+dir)
+	a.persist(a.store.SaveProjectRoot(dir))
+	a.startWatcher(dir)
+	a.addRecentProject(dir)
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "project:opened", dir)
 	}
@@ -513,6 +537,370 @@ func (a *App) Chat(message string) (ai.Reply, error) {
 	return reply, nil
 }
 
+func (a *App) SearchInProject(query string, isRegex bool, caseSensitive bool, includePattern string) (fsutil.SearchResult, error) {
+	if a.projectRoot == "" {
+		return fsutil.SearchResult{}, fmt.Errorf("no project open")
+	}
+	if query == "" {
+		return fsutil.SearchResult{}, nil
+	}
+	return fsutil.SearchFiles(a.projectRoot, query, isRegex, caseSensitive, includePattern)
+}
+
+func (a *App) ReplaceInFile(filePath, search, replace string, isRegex, caseSensitive bool) (int, error) {
+	if a.projectRoot == "" {
+		return 0, fmt.Errorf("no project open")
+	}
+	count, err := fsutil.ReplaceInFile(a.projectRoot, filePath, search, replace, isRegex, caseSensitive)
+	if err == nil && count > 0 {
+		a.emitFSChanged()
+	}
+	return count, err
+}
+
+func (a *App) ReplaceInProject(search, replace string, isRegex, caseSensitive bool, includePattern string) (int, error) {
+	if a.projectRoot == "" {
+		return 0, fmt.Errorf("no project open")
+	}
+	count, err := fsutil.ReplaceInProject(a.projectRoot, search, replace, isRegex, caseSensitive, includePattern)
+	if err == nil && count > 0 {
+		a.emitFSChanged()
+	}
+	return count, err
+}
+
+type GitStatusEntry struct {
+	Path    string `json:"path"`
+	Status  string `json:"status"`
+	Staged  bool   `json:"staged"`
+}
+
+type GitBranchInfo struct {
+	Name    string `json:"name"`
+	Current bool   `json:"current"`
+}
+
+type GitLogEntry struct {
+	Hash    string `json:"hash"`
+	Author  string `json:"author"`
+	Date    string `json:"date"`
+	Message string `json:"message"`
+}
+
+func (a *App) gitExec(args ...string) (string, error) {
+	if a.projectRoot == "" {
+		return "", fmt.Errorf("no project open")
+	}
+	result, err := terminal.RunSimple(a.projectRoot, "git", args...)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
+func (a *App) GitStatus() ([]GitStatusEntry, error) {
+	out, err := a.gitExec("status", "--porcelain", "-u")
+	if err != nil {
+		return nil, err
+	}
+	var entries []GitStatusEntry
+	for _, line := range strings.Split(out, "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		x := string(line[0])
+		y := string(line[1])
+		path := strings.TrimSpace(line[3:])
+		if path == "" {
+			continue
+		}
+		path = strings.Trim(path, "\"")
+		if strings.Contains(path, " -> ") {
+			parts := strings.Split(path, " -> ")
+			path = strings.Trim(parts[len(parts)-1], "\"")
+		}
+		var status string
+		staged := false
+		switch {
+		case x == "?" && y == "?":
+			status = "untracked"
+		case x == "A":
+			status = "added"
+			staged = true
+		case x == "M":
+			status = "modified"
+			staged = true
+		case x == "D":
+			status = "deleted"
+			staged = true
+		case x == "R":
+			status = "renamed"
+			staged = true
+		case y == "M":
+			status = "modified"
+		case y == "D":
+			status = "deleted"
+		default:
+			status = "changed"
+			if x != " " && x != "?" {
+				staged = true
+			}
+		}
+		entries = append(entries, GitStatusEntry{Path: path, Status: status, Staged: staged})
+	}
+	return entries, nil
+}
+
+func (a *App) GitStage(paths []string) error {
+	if len(paths) == 0 || (len(paths) == 1 && (paths[0] == "." || paths[0] == "-A" || paths[0] == "*")) {
+		_, err := a.gitExec("add", "-A")
+		if err == nil {
+			a.emitFSChanged()
+		}
+		return err
+	}
+
+	const maxBatchSize = 40
+	for i := 0; i < len(paths); i += maxBatchSize {
+		end := i + maxBatchSize
+		if end > len(paths) {
+			end = len(paths)
+		}
+		batch := paths[i:end]
+		args := append([]string{"add", "--"}, batch...)
+		if _, err := a.gitExec(args...); err != nil {
+			return err
+		}
+	}
+	a.emitFSChanged()
+	return nil
+}
+
+func (a *App) GitUnstage(paths []string) error {
+	if len(paths) == 0 || (len(paths) == 1 && (paths[0] == "." || paths[0] == "-A" || paths[0] == "*")) {
+		_, err := a.gitExec("reset", "HEAD")
+		if err == nil {
+			a.emitFSChanged()
+		}
+		return err
+	}
+
+	const maxBatchSize = 40
+	for i := 0; i < len(paths); i += maxBatchSize {
+		end := i + maxBatchSize
+		if end > len(paths) {
+			end = len(paths)
+		}
+		batch := paths[i:end]
+		args := append([]string{"reset", "HEAD", "--"}, batch...)
+		if _, err := a.gitExec(args...); err != nil {
+			return err
+		}
+	}
+	a.emitFSChanged()
+	return nil
+}
+
+func (a *App) GitCommit(message string) error {
+	if message == "" {
+		return fmt.Errorf("commit message is empty")
+	}
+	_, err := a.gitExec("commit", "-m", message)
+	if err == nil {
+		a.emitFSChanged()
+	}
+	return err
+}
+
+func (a *App) GitPush() (string, error) {
+	return a.gitExec("push")
+}
+
+func (a *App) GitPull() (string, error) {
+	res, err := a.gitExec("pull")
+	if err == nil {
+		a.emitFSChanged()
+	}
+	return res, err
+}
+
+func (a *App) GitBranches() ([]GitBranchInfo, error) {
+	out, err := a.gitExec("branch", "--no-color")
+	if err != nil {
+		return nil, err
+	}
+	var branches []GitBranchInfo
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		current := false
+		if strings.HasPrefix(line, "* ") {
+			current = true
+			line = line[2:]
+		}
+		branches = append(branches, GitBranchInfo{Name: strings.TrimSpace(line), Current: current})
+	}
+	return branches, nil
+}
+
+func (a *App) GitSwitchBranch(branch string) error {
+	_, err := a.gitExec("checkout", branch)
+	if err == nil {
+		a.emitFSChanged()
+	}
+	return err
+}
+
+func (a *App) GitDiff(path string) (string, error) {
+	if path == "" {
+		return a.gitExec("diff")
+	}
+	return a.gitExec("diff", "--", path)
+}
+
+func (a *App) GitDiffStaged(path string) (string, error) {
+	if path == "" {
+		return a.gitExec("diff", "--cached")
+	}
+	return a.gitExec("diff", "--cached", "--", path)
+}
+
+func (a *App) GitBlame(path string) (string, error) {
+	return a.gitExec("blame", "--", path)
+}
+
+func (a *App) GitLog(count int) ([]GitLogEntry, error) {
+	if count <= 0 {
+		count = 20
+	}
+	out, err := a.gitExec("log", fmt.Sprintf("-%d", count), "--pretty=format:%H|%an|%ad|%s", "--date=short")
+	if err != nil {
+		return nil, err
+	}
+	var entries []GitLogEntry
+	for _, line := range strings.Split(out, "\n") {
+		parts := strings.SplitN(line, "|", 4)
+		if len(parts) < 4 {
+			continue
+		}
+		entries = append(entries, GitLogEntry{
+			Hash:    parts[0][:7],
+			Author:  parts[1],
+			Date:    parts[2],
+			Message: parts[3],
+		})
+	}
+	return entries, nil
+}
+
+func (a *App) GitCurrentBranch() (string, error) {
+	out, err := a.gitExec("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+const keyEditorSettings = "editor_settings"
+
+func (a *App) SaveEditorSettings(settings string) error {
+	return a.store.Set(keyEditorSettings, settings)
+}
+
+func (a *App) GetEditorSettings() string {
+	return a.store.Get(keyEditorSettings)
+}
+
+func (a *App) FormatDocument(filePath, content string) fsutil.FormatResult {
+	return fsutil.FormatDocument(filePath, content)
+}
+
+func (a *App) GetProjectSettings() (fsutil.ProjectSettings, error) {
+	return fsutil.ReadProjectSettings(a.projectRoot)
+}
+
+func (a *App) SaveProjectSettings(settingsJSON string) error {
+	if a.projectRoot == "" {
+		return fmt.Errorf("no project open")
+	}
+	var settings fsutil.ProjectSettings
+	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
+		return fmt.Errorf("invalid settings: %w", err)
+	}
+	err := fsutil.WriteProjectSettings(a.projectRoot, settings)
+	if err == nil {
+		a.emitFSChanged()
+	}
+	return err
+}
+
+func (a *App) GetRecentProjects() []fsutil.RecentProject {
+	raw := a.store.Get(keyRecentProjects)
+	if raw == "" {
+		return nil
+	}
+	var projects []fsutil.RecentProject
+	if err := json.Unmarshal([]byte(raw), &projects); err != nil {
+		return nil
+	}
+	return projects
+}
+
+func (a *App) addRecentProject(dir string) {
+	if a.store == nil || dir == "" {
+		return
+	}
+	projects := a.GetRecentProjects()
+
+	filtered := make([]fsutil.RecentProject, 0, len(projects))
+	for _, p := range projects {
+		if p.Path != dir {
+			filtered = append(filtered, p)
+		}
+	}
+
+	entry := fsutil.RecentProject{
+		Path:     dir,
+		Name:     filepath.Base(dir),
+		OpenedAt: time.Now().Unix(),
+	}
+	filtered = append([]fsutil.RecentProject{entry}, filtered...)
+
+	if len(filtered) > 10 {
+		filtered = filtered[:10]
+	}
+
+	data, err := json.Marshal(filtered)
+	if err == nil {
+		_ = a.store.Set(keyRecentProjects, string(data))
+	}
+}
+
+func (a *App) ClearRecentProjects() error {
+	return a.store.Set(keyRecentProjects, "")
+}
+
+func (a *App) GetCustomSnippets() ([]fsutil.SnippetDef, error) {
+	return fsutil.LoadSnippets(a.projectRoot)
+}
+
+func (a *App) InitProjectConfig() error {
+	if a.projectRoot == "" {
+		return fmt.Errorf("no project open")
+	}
+	settings := fsutil.DefaultProjectSettings()
+	settings.FormatOnSave = true
+	err := fsutil.WriteProjectSettings(a.projectRoot, settings)
+	if err == nil {
+		a.emitFSChanged()
+	}
+	return err
+}
+
+const keyRecentProjects = "recent_projects"
+
 func (a *App) emitFSChanged() {
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "fs:changed")
@@ -525,8 +913,6 @@ func (a *App) persist(err error) {
 	}
 }
 
-// startWatcher sets up an fsnotify watcher on the project root so that
-// external file changes (e.g. from the OS file manager) are pushed to the frontend.
 func (a *App) startWatcher(root string) {
 	a.stopWatcher()
 
@@ -544,8 +930,6 @@ func (a *App) startWatcher(root string) {
 	a.watcherDone = done
 	a.watcherMu.Unlock()
 
-	// Add root and immediate subdirectories (1 level deep is enough;
-	// deeper dirs get added when expanded in the UI via fs:changed reload).
 	_ = w.Add(root)
 	a.addSubDirs(w, root, 3)
 
@@ -558,13 +942,11 @@ func (a *App) startWatcher(root string) {
 				if !ok {
 					return
 				}
-				// When a new directory is created, start watching it too.
 				if ev.Op&(fsnotify.Create) != 0 {
 					if info, err := os.Stat(ev.Name); err == nil && info.IsDir() {
 						_ = w.Add(ev.Name)
 					}
 				}
-				// Debounce: batch rapid changes into a single emit.
 				if debounce != nil {
 					debounce.Stop()
 				}
@@ -590,7 +972,6 @@ func (a *App) stopWatcher() {
 	}
 }
 
-// addSubDirs recursively watches subdirectories up to a given depth.
 func (a *App) addSubDirs(w *fsnotify.Watcher, dir string, depth int) {
 	if depth <= 0 {
 		return
@@ -604,7 +985,6 @@ func (a *App) addSubDirs(w *fsnotify.Watcher, dir string, depth int) {
 			continue
 		}
 		name := e.Name()
-		// Skip hidden dirs and common heavy dirs.
 		if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "__pycache__" {
 			continue
 		}

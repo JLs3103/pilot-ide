@@ -111,6 +111,13 @@
     flex-shrink: 0;
 }
 
+.editor-tab-icon svg {
+    display: block;
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
+    image-rendering: -webkit-optimize-contrast;
+}
+
 .editor-tab-name {
     display: flex;
     align-items: center;

@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState, useRef, useMemo} from 'react';
-import {ReadFile, WriteFile, OpenProject, SaveFileAs, QuitApp, SaveOpenTabs, GetOpenTabs, CreateFile} from '../wailsjs/go/main/App';
+import {ReadFile, WriteFile, OpenProject, OpenProjectPath, SaveFileAs, QuitApp, SaveOpenTabs, GetOpenTabs, CreateFile, FormatDocument, GetProjectSettings, GetRecentProjects, ClearRecentProjects, GetProjectRoot, SaveEditorSettings} from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime/runtime';
 import {ChatPanel} from './components/ChatPanel';
 import {EditorPane} from './components/EditorPane';
@@ -10,13 +10,27 @@ import {SideNavigation} from './components/SideNavigation';
 import {ResizableLayout} from './components/ResizableLayout';
 import {StatusBar} from './components/StatusBar';
 import {CommandPalette, buildDefaultCommands} from './components/CommandPalette';
+import {ToastHost} from './components/ToastHost';
+import type {EditorSettings} from './components/SettingsPanel';
+import {defaultSettings, loadEditorSettings} from './components/SettingsPanel';
+import {formatError, notify, reportError} from './lib/notifications';
+import {registerAllSnippets} from './lib/snippets';
 import './App.css';
 
 const MAX_CLOSED_TABS = 20;
+const RECOVERY_STORAGE_KEY = 'pilot-ide-recovery-v1';
+const AUTOSAVE_INTERVAL_MS = 10000;
 
 type ClosedTab = {
     path: string;
     name: string;
+};
+
+type RecoverySnapshot = {
+    path: string;
+    name: string;
+    value: string;
+    savedAt: number;
 };
 
 function App() {
@@ -34,6 +48,11 @@ function App() {
     const [cursorCol, setCursorCol] = useState(1);
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [paletteMode, setPaletteMode] = useState<'command' | 'goto'>('command');
+    const [editorSettings, setEditorSettings] = useState<EditorSettings>(defaultSettings);
+    const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'recovery' | 'error'>('saved');
+    const [formatOnSave, setFormatOnSave] = useState(false);
+    const [recentProjects, setRecentProjects] = useState<Array<{path: string; name: string}>>([]);
+    const snippetsRegistered = useRef(false);
 
     const resizableLayoutRef = useRef<any>(null);
     const editorRef = useRef<any>(null);
@@ -42,6 +61,13 @@ function App() {
     const activePath = activeTab?.path ?? null;
     const activeName = activeTab?.name ?? null;
     const dirty = activeTab ? activeTab.value !== activeTab.saved : false;
+
+    const loadRecentProjects = useCallback(async () => {
+        try {
+            const list = await GetRecentProjects();
+            setRecentProjects(list ?? []);
+        } catch {}
+    }, []);
 
     const persistTabs = useCallback(async (currentTabs: TabInfo[], currentActiveIndex: number) => {
         try {
@@ -53,6 +79,21 @@ function App() {
         } catch (e) {
             console.error('Failed to save open tabs:', e);
         }
+    }, []);
+
+    useEffect(() => {
+        const handleWindowError = (event: ErrorEvent) => {
+            reportError('Unexpected UI error', event.error ?? event.message);
+        };
+        const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+            reportError('Unexpected async error', event.reason);
+        };
+        window.addEventListener('error', handleWindowError);
+        window.addEventListener('unhandledrejection', handleUnhandledRejection);
+        return () => {
+            window.removeEventListener('error', handleWindowError);
+            window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+        };
     }, []);
 
     useEffect(() => {
@@ -69,7 +110,14 @@ function App() {
                         for (const t of data.tabs) {
                             try {
                                 const content = await ReadFile(t.path);
-                                restored.push({path: t.path, name: t.name, value: content, saved: content});
+                                const recovery = readRecoverySnapshot(t.path);
+                                const value = recovery && recovery.value !== content && window.confirm(`Recover unsaved changes for ${t.name}?`)
+                                    ? recovery.value
+                                    : content;
+                                restored.push({path: t.path, name: t.name, value, saved: content});
+                                if (value !== content) {
+                                    setSaveStatus('recovery');
+                                }
                             } catch {
                             }
                         }
@@ -81,18 +129,57 @@ function App() {
                     }
                 }
             } catch (e) {
-                console.error('Failed to restore open tabs:', e);
+                reportError('Failed to restore open tabs', e);
             }
             setTabsLoaded(true);
         })();
+        void loadEditorSettings().then(s => {
+            setEditorSettings(s);
+            setFormatOnSave(s.formatOnSave ?? false);
+        });
+        void loadRecentProjects();
+        void GetProjectRoot().then(r => {
+            if (r) setProjectRoot(r);
+        }).catch(() => {});
+    }, [loadRecentProjects]);
+
+    const pendingJumpRef = useRef<{line: number; col: number} | null>(null);
+
+    const jumpToLineCol = useCallback((line: number, col: number) => {
+        const editor = editorRef.current;
+        if (editor) {
+            editor.revealPositionInCenter({lineNumber: line, column: col});
+            editor.setPosition({lineNumber: line, column: col});
+            editor.focus();
+        }
     }, []);
 
-    async function openFile(nextPath: string, nextName: string) {
+    useEffect(() => {
+        if (pendingJumpRef.current && activeTabIndex >= 0) {
+            const {line, col} = pendingJumpRef.current;
+            const timer = setTimeout(() => {
+                jumpToLineCol(line, col);
+                pendingJumpRef.current = null;
+            }, 70);
+            return () => clearTimeout(timer);
+        }
+    }, [activeTabIndex, jumpToLineCol]);
+
+    async function openFile(nextPath: string, nextName: string, line?: number, col?: number) {
+        if (line !== undefined) {
+            pendingJumpRef.current = {line, col: col ?? 1};
+        }
         try {
             const existingIndex = tabs.findIndex(t => t.path === nextPath);
             if (existingIndex >= 0) {
                 setActiveTabIndex(existingIndex);
                 void persistTabs(tabs, existingIndex);
+                if (line !== undefined) {
+                    setTimeout(() => {
+                        jumpToLineCol(line, col ?? 1);
+                        pendingJumpRef.current = null;
+                    }, 50);
+                }
                 return;
             }
             const content = await ReadFile(nextPath);
@@ -104,8 +191,14 @@ function App() {
                 void persistTabs(next, nextIdx);
                 return next;
             });
+            if (line !== undefined) {
+                setTimeout(() => {
+                    jumpToLineCol(line, col ?? 1);
+                    pendingJumpRef.current = null;
+                }, 100);
+            }
         } catch (err) {
-            console.error(String(err));
+            reportError(`Unable to open ${nextName}`, err);
         }
     }
 
@@ -178,6 +271,19 @@ function App() {
         });
     }, []);
 
+    useEffect(() => {
+        if (!tabsLoaded) return;
+        const snapshots: RecoverySnapshot[] = tabs
+            .filter(tab => tab.value !== tab.saved && !tab.path.startsWith('new:'))
+            .map(tab => ({path: tab.path, name: tab.name, value: tab.value, savedAt: Date.now()}));
+        if (snapshots.length > 0) {
+            localStorage.setItem(RECOVERY_STORAGE_KEY, JSON.stringify(snapshots));
+        } else {
+            localStorage.removeItem(RECOVERY_STORAGE_KEY);
+            setSaveStatus('saved');
+        }
+    }, [tabs, tabsLoaded]);
+
     async function openProject() {
         try {
             const selected = await OpenProject();
@@ -190,7 +296,7 @@ function App() {
                 void persistTabs([], -1);
             }
         } catch (err) {
-            console.error(String(err));
+            reportError('Unable to open project', err);
         }
     }
 
@@ -221,16 +327,40 @@ function App() {
                 setProjectRoot(newRoot);
                 setExplorerKey(prev => prev + 1);
             }
+            void loadRecentProjects();
         });
         return () => {
             if (cancel) cancel();
         };
-    }, [persistTabs]);
+    }, [persistTabs, loadRecentProjects]);
 
-    const save = useCallback(async (index?: number) => {
+    const openRecentProject = useCallback(async (dir: string) => {
+        try {
+            await OpenProjectPath(dir);
+        } catch (err) {
+            reportError('Failed to open recent project', err);
+        }
+    }, []);
+
+    const clearRecent = useCallback(async () => {
+        try {
+            await ClearRecentProjects();
+            setRecentProjects([]);
+            notify('Recent projects cleared', 'info');
+        } catch (err) {
+            reportError('Failed to clear recent projects', err);
+        }
+    }, []);
+
+    const save = useCallback(async (index?: number, forceFormat?: boolean) => {
         const idx = index ?? activeTabIndex;
         const tab = tabs[idx];
-        if (!tab || tab.value === tab.saved) return;
+        if (!tab) return;
+
+        const isDirty = tab.value !== tab.saved;
+        const shouldFormat = (formatOnSave || forceFormat) && !tab.path.startsWith('new:');
+
+        if (!isDirty && !shouldFormat) return;
 
         if (tab.path.startsWith('new:')) {
             void saveAs();
@@ -238,18 +368,74 @@ function App() {
         }
 
         try {
-            await WriteFile(tab.path, tab.value);
+            setSaveStatus('saving');
+
+            let contentToSave = tab.value;
+            if (shouldFormat) {
+                try {
+                    const result = await FormatDocument(tab.path, tab.value);
+                    if (result?.formatted && !result.error) {
+                        contentToSave = result.formatted;
+                        setTabs(prev => {
+                            const next = [...prev];
+                            if (idx >= 0 && idx < next.length) {
+                                next[idx] = {...next[idx], value: contentToSave};
+                            }
+                            return next;
+                        });
+                    }
+                } catch {
+                }
+            }
+
+            if (!isDirty && contentToSave === tab.saved) {
+                setSaveStatus('saved');
+                return;
+            }
+
+            await WriteFile(tab.path, contentToSave);
             setTabs(prev => {
                 const next = [...prev];
                 if (idx >= 0 && idx < next.length) {
-                    next[idx] = {...next[idx], saved: next[idx].value};
+                    next[idx] = {...next[idx], saved: contentToSave, value: contentToSave};
                 }
                 return next;
             });
+            removeRecoverySnapshot(tab.path);
+            setSaveStatus('saved');
         } catch (err) {
-            console.error(String(err));
+            reportError(`Failed to save ${tab.name}`, err);
+            setSaveStatus('error');
         }
-    }, [activeTabIndex, tabs]);
+    }, [activeTabIndex, tabs, formatOnSave]);
+
+    useEffect(() => {
+        if (!tabsLoaded) return;
+        const timer = window.setInterval(() => {
+            const dirtyIndexes = tabs.reduce<number[]>((indexes, tab, index) => {
+                if (tab.value !== tab.saved) indexes.push(index);
+                return indexes;
+            }, []);
+            if (dirtyIndexes.length > 0) {
+                setSaveStatus('saving');
+                void Promise.all(dirtyIndexes.map(index => save(index)));
+            }
+        }, AUTOSAVE_INTERVAL_MS);
+        return () => window.clearInterval(timer);
+    }, [save, tabs, tabsLoaded]);
+
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            const snapshots = tabs
+                .filter(tab => tab.value !== tab.saved && !tab.path.startsWith('new:'))
+                .map(tab => ({path: tab.path, name: tab.name, value: tab.value, savedAt: Date.now()}));
+            if (snapshots.length > 0) {
+                localStorage.setItem(RECOVERY_STORAGE_KEY, JSON.stringify(snapshots));
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [tabs]);
 
     const saveAs = useCallback(async () => {
         const tab = tabs[activeTabIndex];
@@ -274,7 +460,8 @@ function App() {
                 });
             }
         } catch (err) {
-            console.error(String(err));
+            reportError(`Failed to save ${tab?.name ?? 'file'}`, err);
+            setSaveStatus('error');
         }
     }, [activeTabIndex, tabs]);
 
@@ -391,12 +578,53 @@ function App() {
 
     const handleEditorMount = useCallback((editor: any) => {
         editorRef.current = editor;
-    }, []);
+        if (pendingJumpRef.current) {
+            const {line, col} = pendingJumpRef.current;
+            jumpToLineCol(line, col);
+            pendingJumpRef.current = null;
+        }
+        if (!snippetsRegistered.current) {
+            snippetsRegistered.current = true;
+            try {
+                const monacoModule = (window as any).monaco ?? editor._standaloneCodeEditor?._modelData?.model?._languageService;
+                import('monaco-editor').then(m => {
+                    registerAllSnippets(m);
+                }).catch(() => {});
+            } catch {}
+        }
+    }, [jumpToLineCol]);
 
     const handleCursorChange = useCallback((line: number, col: number) => {
         setCursorLine(line);
         setCursorCol(col);
     }, []);
+
+    useEffect(() => {
+        setFormatOnSave(editorSettings.formatOnSave ?? false);
+    }, [editorSettings.formatOnSave]);
+
+    const formatDocument = useCallback(async () => {
+        const tab = tabs[activeTabIndex];
+        if (!tab || tab.path.startsWith('new:')) {
+            notify('No file to format', 'warning');
+            return;
+        }
+        try {
+            const result = await FormatDocument(tab.path, tab.value);
+            if (result?.formatted && !result.error) {
+                setTabs(prev => {
+                    const next = [...prev];
+                    next[activeTabIndex] = {...next[activeTabIndex], value: result.formatted};
+                    return next;
+                });
+                notify('Document formatted', 'info');
+            } else if (result?.error) {
+                notify(`Format: ${result.error}`, 'warning');
+            }
+        } catch (err) {
+            reportError('Format failed', err);
+        }
+    }, [activeTabIndex, tabs]);
 
     const openCommandPalette = useCallback(() => {
         setPaletteMode('command');
@@ -437,7 +665,21 @@ function App() {
         selectAll: handleSelectAll,
         zoomIn,
         zoomOut,
-    }), [save, saveAs, closeActiveTab, newFile, toggleSidebar, toggleTerminal, toggleAiPanel, handleFind, handleReplace, openGoToLine, handleUndo, handleRedo, handleCut, handleCopy, handlePaste, handleSelectAll, zoomIn, zoomOut]);
+        formatDocument,
+        toggleFormatOnSave: () => {
+            const next = !editorSettings.formatOnSave;
+            setEditorSettings(prev => {
+                const updated = {...prev, formatOnSave: next};
+                void SaveEditorSettings(JSON.stringify(updated));
+                return updated;
+            });
+            setFormatOnSave(next);
+            notify(`Format on Save: ${next ? 'Enabled' : 'Disabled'}`, 'info');
+        },
+        openRecentProject,
+        clearRecentProjects: clearRecent,
+        recentProjects,
+    }), [save, saveAs, closeActiveTab, newFile, toggleSidebar, toggleTerminal, toggleAiPanel, handleFind, handleReplace, openGoToLine, handleUndo, handleRedo, handleCut, handleCopy, handlePaste, handleSelectAll, zoomIn, zoomOut, formatDocument, editorSettings.formatOnSave, openRecentProject, clearRecent, recentProjects]);
 
     useEffect(() => {
         function onKey(event: KeyboardEvent) {
@@ -522,10 +764,14 @@ function App() {
                 event.preventDefault();
                 reopenClosedTab();
             }
+            if (event.shiftKey && event.altKey && (event.key === 'f' || event.key === 'F') && !ctrl) {
+                event.preventDefault();
+                void formatDocument();
+            }
         }
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [save, saveAs, closeActiveTab, newFile, toggleSidebar, toggleTerminal, showTerminal, toggleAiPanel, zoomIn, zoomOut, tabs, activeTabIndex, activateTab, reopenClosedTab, openCommandPalette, openGoToLine]);
+    }, [save, saveAs, closeActiveTab, newFile, toggleSidebar, toggleTerminal, showTerminal, toggleAiPanel, zoomIn, zoomOut, tabs, activeTabIndex, activateTab, reopenClosedTab, openCommandPalette, openGoToLine, formatDocument]);
 
     return (
         <div id="App" className="ide-shell">
@@ -553,6 +799,9 @@ function App() {
                 onSelectAll={handleSelectAll}
                 onGoToLine={openGoToLine}
                 onCommandPalette={openCommandPalette}
+                recentProjects={recentProjects}
+                onOpenRecentProject={(p) => void openRecentProject(p)}
+                onClearRecentProjects={() => void clearRecent()}
             />
             <ResizableLayout
                 sidebarVisible={sidebarVisible}
@@ -565,10 +814,13 @@ function App() {
                 sidebar={
                     <SideNavigation
                         explorerKey={explorerKey}
-                        onOpenFile={(p, n) => void openFile(p, n)}
+                        onOpenFile={(p, n, l, c) => void openFile(p, n, l, c)}
                         activePath={activePath}
                         collapsed={!sidebarVisible}
                         onCollapsedChange={handleSidebarCollapsedChange}
+                        editorSettings={editorSettings}
+                        onEditorSettingsChange={setEditorSettings}
+                        projectRoot={projectRoot}
                     />
                 }
                 main={
@@ -582,6 +834,7 @@ function App() {
                             onSave={(idx) => void save(idx)}
                             onEditorMount={handleEditorMount}
                             onCursorChange={handleCursorChange}
+                            editorSettings={editorSettings}
                         />
                     </div>
                 }
@@ -598,6 +851,7 @@ function App() {
                 aiPanelVisible={aiPanelVisible}
                 terminalVisible={terminalVisible}
                 dirty={dirty}
+                saveStatus={saveStatus}
                 onToggleTerminal={toggleTerminal}
                 onToggleAiPanel={toggleAiPanel}
                 onGoToLine={openGoToLine}
@@ -609,8 +863,33 @@ function App() {
                 mode={paletteMode}
                 onGoToLine={handleGoToLine}
             />
+            <ToastHost />
         </div>
     );
+}
+
+function readRecoverySnapshot(path: string): RecoverySnapshot | undefined {
+    try {
+        const raw = localStorage.getItem(RECOVERY_STORAGE_KEY);
+        const snapshots = raw ? JSON.parse(raw) as RecoverySnapshot[] : [];
+        return snapshots.find(snapshot => snapshot.path === path);
+    } catch (error) {
+        console.warn('Unable to read recovery snapshots:', formatError(error));
+        notify('Recovery snapshot could not be read', 'warning');
+        return undefined;
+    }
+}
+
+function removeRecoverySnapshot(path: string) {
+    try {
+        const raw = localStorage.getItem(RECOVERY_STORAGE_KEY);
+        const snapshots = raw ? JSON.parse(raw) as RecoverySnapshot[] : [];
+        const remaining = snapshots.filter(snapshot => snapshot.path !== path);
+        if (remaining.length > 0) localStorage.setItem(RECOVERY_STORAGE_KEY, JSON.stringify(remaining));
+        else localStorage.removeItem(RECOVERY_STORAGE_KEY);
+    } catch (error) {
+        console.warn('Unable to clear recovery snapshot:', formatError(error));
+    }
 }
 
 export default App;

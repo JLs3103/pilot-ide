@@ -1,14 +1,17 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useRef, useState, useMemo} from 'react';
 import {GetProjectRoot, ListDir, OpenProject, CreateFile, CreateFolder, RenameFile, DeleteFileOrDir} from '../../wailsjs/go/main/App';
 import {EventsOn} from '../../wailsjs/runtime/runtime';
 import {getFileIcon} from '../lib/fileIcons';
 import {FilePlus, FolderPlus, Pencil, Trash2, RefreshCw, ChevronsDownUp} from 'lucide-react';
+import {reportError} from '../lib/notifications';
 import type {DirEntry} from '../types';
+import type {GitEntry} from './SourceControlPanel';
 import './FileExplorer.css';
 
 type Props = {
-    onOpenFile: (path: string, name: string) => void;
+    onOpenFile: (path: string, name: string, line?: number, col?: number) => void;
     activePath: string | null;
+    gitEntries?: GitEntry[];
 };
 
 type NodeState = {
@@ -51,7 +54,7 @@ function ChevronArrow({expanded}: {expanded: boolean}) {
     );
 }
 
-export function FileExplorer({onOpenFile, activePath}: Props) {
+export function FileExplorer({onOpenFile, activePath, gitEntries}: Props) {
     const [root, setRoot] = useState('');
     const [nodes, setNodes] = useState<NodeState[]>([]);
     const [error, setError] = useState('');
@@ -62,6 +65,34 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
 
     nodesRef.current = nodes;
     rootRef.current = root;
+
+    const gitStatusMap = useMemo(() => {
+        const fileMap = new Map<string, GitEntry>();
+        const modifiedFolders = new Set<string>();
+        const untrackedFolders = new Set<string>();
+
+        if (!gitEntries || gitEntries.length === 0) {
+            return { fileMap, modifiedFolders, untrackedFolders };
+        }
+
+        for (const entry of gitEntries) {
+            const normPath = entry.path.replace(/\\/g, '/').toLowerCase();
+            fileMap.set(normPath, entry);
+
+            const parts = normPath.split('/');
+            let currentFolder = '';
+            for (let i = 0; i < parts.length - 1; i++) {
+                currentFolder = currentFolder ? `${currentFolder}/${parts[i]}` : parts[i];
+                if (entry.status === 'modified' || entry.status === 'deleted' || entry.status === 'renamed' || entry.staged) {
+                    modifiedFolders.add(currentFolder);
+                } else if (entry.status === 'untracked' || entry.status === 'added') {
+                    untrackedFolders.add(currentFolder);
+                }
+            }
+        }
+
+        return { fileMap, modifiedFolders, untrackedFolders };
+    }, [gitEntries]);
 
     const loadRoot = useCallback(async (path: string, expandedPaths: string[] = []) => {
         setRoot(path);
@@ -76,6 +107,7 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
             setError('');
         } catch (err) {
             setError(String(err));
+            reportError('Explorer failed to load folder', err);
         }
     }, []);
 
@@ -134,6 +166,7 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
             setNodes(next);
         } catch (err) {
             setError(String(err));
+            reportError('Explorer failed to open folder', err);
         }
     }
 
@@ -182,6 +215,7 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
             await DeleteFileOrDir(node.entry.path);
         } catch (err) {
             setError(String(err));
+            reportError('Explorer delete failed', err);
         }
     }
 
@@ -207,6 +241,7 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
             }
         } catch (err) {
             setError(String(err));
+            reportError('Explorer file operation failed', err);
         }
         setInlineInput(null);
     }
@@ -293,6 +328,8 @@ export function FileExplorer({onOpenFile, activePath}: Props) {
                         depth={0}
                         indexPath={[i]}
                         activePath={activePath}
+                        root={root}
+                        gitStatusMap={gitStatusMap}
                         onToggle={toggleDir}
                         onContextMenu={handleContextMenu}
                         inlineInput={inlineInput}
@@ -469,11 +506,28 @@ function InlineFileInput({
     );
 }
 
+type GitStatusMaps = {
+    fileMap: Map<string, GitEntry>;
+    modifiedFolders: Set<string>;
+    untrackedFolders: Set<string>;
+};
+
+function getRelativePath(absPath: string, rootDir: string): string {
+    const nRoot = rootDir.replace(/\\/g, '/').replace(/\/$/, '').toLowerCase();
+    const nPath = absPath.replace(/\\/g, '/').toLowerCase();
+    if (nPath.startsWith(nRoot + '/')) {
+        return nPath.slice(nRoot.length + 1);
+    }
+    return nPath;
+}
+
 function TreeItem({
     node,
     depth,
     indexPath,
     activePath,
+    root,
+    gitStatusMap,
     onToggle,
     onContextMenu,
     inlineInput,
@@ -484,6 +538,8 @@ function TreeItem({
     depth: number;
     indexPath: number[];
     activePath: string | null;
+    root: string;
+    gitStatusMap: GitStatusMaps;
     onToggle: (indexPath: number[], node: NodeState) => void;
     onContextMenu: (e: React.MouseEvent, node: NodeState, indexPath: number[]) => void;
     inlineInput: InlineInputState;
@@ -496,6 +552,47 @@ function TreeItem({
 
     const isRenaming = inlineInput?.type === 'rename' && inlineInput.oldPath === node.entry.path;
     const showNewInput = inlineInput && (inlineInput.type === 'new-file' || inlineInput.type === 'new-folder') && inlineInput.parentPath === node.entry.path && node.expanded;
+
+    const relPath = getRelativePath(node.entry.path, root);
+    let gitStatusClass = '';
+    let gitBadgeText = '';
+
+    if (isDir) {
+        if (gitStatusMap.modifiedFolders.has(relPath)) {
+            gitStatusClass = 'git-folder-modified';
+        } else if (gitStatusMap.untrackedFolders.has(relPath)) {
+            gitStatusClass = 'git-folder-untracked';
+        }
+    } else {
+        const gitEntry = gitStatusMap.fileMap.get(relPath);
+        if (gitEntry) {
+            switch (gitEntry.status) {
+                case 'modified':
+                    gitStatusClass = 'git-file-modified';
+                    gitBadgeText = 'M';
+                    break;
+                case 'untracked':
+                    gitStatusClass = 'git-file-untracked';
+                    gitBadgeText = 'U';
+                    break;
+                case 'added':
+                    gitStatusClass = 'git-file-added';
+                    gitBadgeText = 'A';
+                    break;
+                case 'deleted':
+                    gitStatusClass = 'git-file-deleted';
+                    gitBadgeText = 'D';
+                    break;
+                case 'renamed':
+                    gitStatusClass = 'git-file-renamed';
+                    gitBadgeText = 'R';
+                    break;
+                default:
+                    gitStatusClass = 'git-file-modified';
+                    gitBadgeText = 'M';
+            }
+        }
+    }
 
     if (isRenaming) {
         return (
@@ -516,6 +613,7 @@ function TreeItem({
                 style={{paddingLeft: 4 + depth * 16}}
                 onClick={() => onToggle(indexPath, node)}
                 onContextMenu={e => onContextMenu(e, node, indexPath)}
+                title={node.entry.path}
             >
                 {isDir ? (
                     <span className="tree-chevron">
@@ -527,7 +625,10 @@ function TreeItem({
                 <span className="tree-icon" style={{color: fileIcon.color}}>
                     {fileIcon.icon}
                 </span>
-                <span className="tree-name">{node.entry.name}</span>
+                <span className={`tree-name ${gitStatusClass}`}>{node.entry.name}</span>
+                {gitBadgeText && (
+                    <span className={`tree-git-badge ${gitStatusClass}`}>{gitBadgeText}</span>
+                )}
             </button>
             {showNewInput && (
                 <InlineFileInput
@@ -544,6 +645,8 @@ function TreeItem({
                     depth={depth + 1}
                     indexPath={[...indexPath, i]}
                     activePath={activePath}
+                    root={root}
+                    gitStatusMap={gitStatusMap}
                     onToggle={onToggle}
                     onContextMenu={onContextMenu}
                     inlineInput={inlineInput}
