@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const maxReadBytes = 8 << 20 // 8 MiB
+const maxReadBytes = 8 << 20
 
 var skipInTree = map[string]struct{}{
 	".git":         {},
@@ -199,4 +199,88 @@ func writeTree(b *strings.Builder, node TreeNode, indent string) {
 	for _, child := range node.Children {
 		writeTree(b, child, childIndent)
 	}
+}
+
+func EditFile(root, path, oldText, newText string) (int, error) {
+	abs, err := Resolve(root, path)
+	if err != nil {
+		return 0, err
+	}
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		return 0, err
+	}
+	content := string(data)
+	count := strings.Count(content, oldText)
+	if count == 0 {
+		return 0, fmt.Errorf("old_text not found in %s", path)
+	}
+	result := strings.ReplaceAll(content, oldText, newText)
+	if err := os.WriteFile(abs, []byte(result), 0o644); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func RenameOrMove(root, oldPath, newPath string) error {
+	absOld, err := Resolve(root, oldPath)
+	if err != nil {
+		return fmt.Errorf("source: %w", err)
+	}
+	absNew, err := Resolve(root, newPath)
+	if err != nil {
+		return fmt.Errorf("destination: %w", err)
+	}
+	if _, err := os.Stat(absOld); err != nil {
+		return fmt.Errorf("source does not exist: %s", oldPath)
+	}
+	if _, err := os.Stat(absNew); err == nil {
+		return fmt.Errorf("destination already exists: %s", newPath)
+	}
+	if err := os.MkdirAll(filepath.Dir(absNew), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(absOld, absNew)
+}
+
+func CreateDir(root, path string) error {
+	abs, err := Resolve(root, path)
+	if err != nil {
+		return err
+	}
+	if info, err := os.Stat(abs); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("directory already exists: %s", path)
+		}
+		return fmt.Errorf("a file already exists at that path: %s", path)
+	}
+	return os.MkdirAll(abs, 0o755)
+}
+
+type FileInfo struct {
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Size    int64  `json:"size"`
+	IsDir   bool   `json:"isDir"`
+	ModTime string `json:"modTime"`
+	Mode    string `json:"mode"`
+}
+
+func GetFileInfo(root, path string) (FileInfo, error) {
+	abs, err := Resolve(root, path)
+	if err != nil {
+		return FileInfo{}, err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return FileInfo{}, err
+	}
+	return FileInfo{
+		Name:    info.Name(),
+		Path:    abs,
+		Size:    info.Size(),
+		IsDir:   info.IsDir(),
+		ModTime: info.ModTime().Format("2006-01-02 15:04:05"),
+		Mode:    info.Mode().String(),
+	}, nil
 }

@@ -24,14 +24,15 @@ type modelTurn struct {
 }
 
 type RunRequest struct {
-	Mode     string
-	APIKey   string
-	Model    string
-	System   string
-	History  []Message
-	User     string
-	Root     string
-	OnAction func(agent.Action)
+	Mode           string
+	APIKey         string
+	Model          string
+	System         string
+	History        []Message
+	User           string
+	Root           string
+	OnBeforeAction func(name string, args map[string]any)
+	OnAction       func(agent.Action)
 }
 
 func Run(ctx context.Context, req RunRequest) (Reply, error) {
@@ -46,6 +47,9 @@ func Run(ctx context.Context, req RunRequest) (Reply, error) {
 	}
 
 	exec := func(call ToolCall) (string, agent.Action) {
+		if req.OnBeforeAction != nil {
+			req.OnBeforeAction(call.Name, call.Args)
+		}
 		out, action := agent.Execute(req.Root, call.Name, call.Args)
 		if req.OnAction != nil {
 			req.OnAction(action)

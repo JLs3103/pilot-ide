@@ -12,8 +12,29 @@ func toolDeclarations() []map[string]any {
 			"path":    map[string]any{"type": "string", "description": "Path inside the project."},
 			"content": map[string]any{"type": "string", "description": "Full file contents to write."},
 		}, []string{"path", "content"}),
+		fn("edit_file", "Edit a file by replacing specific text. Use this instead of write_file when you only need to change part of a file. The old_text must match exactly (including whitespace and indentation).", map[string]any{
+			"path":     map[string]any{"type": "string", "description": "Path of the file to edit."},
+			"old_text": map[string]any{"type": "string", "description": "The exact text to find and replace. Must match the file content exactly."},
+			"new_text": map[string]any{"type": "string", "description": "The replacement text."},
+		}, []string{"path", "old_text", "new_text"}),
 		fn("delete_file", "Delete a single file inside the project. Directories are not allowed.", map[string]any{
 			"path": map[string]any{"type": "string", "description": "Path of the file to delete."},
+		}, []string{"path"}),
+		fn("rename_file", "Rename or move a file or folder within the project.", map[string]any{
+			"old_path": map[string]any{"type": "string", "description": "Current path of the file or folder."},
+			"new_path": map[string]any{"type": "string", "description": "New path (can be in a different directory to move)."},
+		}, []string{"old_path", "new_path"}),
+		fn("create_dir", "Create an empty directory inside the project. Parent directories are created as needed.", map[string]any{
+			"path": map[string]any{"type": "string", "description": "Relative path of the directory to create."},
+		}, []string{"path"}),
+		fn("search_files", "Search for text or regex pattern across all files in the project. Returns matching lines with file paths and line numbers.", map[string]any{
+			"query":          map[string]any{"type": "string", "description": "Search query string or regex pattern."},
+			"is_regex":       map[string]any{"type": "boolean", "description": "If true, treat query as a regex pattern. Default false."},
+			"case_sensitive": map[string]any{"type": "boolean", "description": "If true, search is case-sensitive. Default false."},
+			"include":        map[string]any{"type": "string", "description": "Glob pattern to filter files, e.g. '*.go' or '*.tsx'. Default all files."},
+		}, []string{"query"}),
+		fn("get_file_info", "Get metadata about a file: size, last modified time, permissions.", map[string]any{
+			"path": map[string]any{"type": "string", "description": "Path of the file or directory."},
 		}, []string{"path"}),
 		fn("map_project_tree", "Return a names-only folder tree of the project. Heavy folders such as node_modules are skipped.", map[string]any{
 			"maxDepth": map[string]any{"type": "integer", "description": "Maximum depth (1-8). Default 5."},

@@ -33,3 +33,15 @@ export type ToolAction = {
     ok: boolean;
     error?: string;
 };
+
+export type FileChange = {
+    path: string;
+    action: 'created' | 'modified' | 'deleted';
+    originalContent?: string;
+    newContent?: string;
+};
+
+export type FileChangesEvent = {
+    turnID: string;
+    changes: FileChange[];
+};

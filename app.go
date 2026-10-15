@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,9 @@ type App struct {
 	geminiKey   string
 	chatHistory []ai.Message
 
+	chatMu     sync.Mutex
+	chatCancel context.CancelFunc
+
 	terminalMu   sync.Mutex
 	terminalCwd  string
 	activeCancel context.CancelFunc
@@ -39,10 +43,15 @@ type App struct {
 	watcherMu   sync.Mutex
 	watcher     *fsnotify.Watcher
 	watcherDone chan struct{}
+
+	snapshots *agent.SnapshotManager
 }
 
 func NewApp() *App {
-	return &App{mode: ai.ModeLocal}
+	return &App{
+		mode:      ai.ModeLocal,
+		snapshots: agent.NewSnapshotManager(),
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -480,6 +489,79 @@ func (a *App) ClearChat() {
 	a.persist(a.store.ClearMessages())
 }
 
+var mentionRegex = regexp.MustCompile(`@(?:\[([^\]]+)\]|([a-zA-Z0-9_\-\./\\]+))`)
+
+func (a *App) resolveMentions(root, message string) string {
+	if root == "" || message == "" {
+		return ""
+	}
+	matches := mentionRegex.FindAllStringSubmatch(message, -1)
+	if len(matches) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	seen := make(map[string]bool)
+
+	for _, m := range matches {
+		target := m[1]
+		if target == "" {
+			target = m[2]
+		}
+		target = strings.TrimSpace(target)
+		if target == "" || seen[target] {
+			continue
+		}
+		seen[target] = true
+
+		abs, err := fsutil.Resolve(root, target)
+		if err != nil {
+			continue
+		}
+		info, err := os.Stat(abs)
+		if err != nil {
+			continue
+		}
+
+		if info.IsDir() {
+			entries, err := os.ReadDir(abs)
+			if err == nil {
+				sb.WriteString(fmt.Sprintf("\n[Directory Context for @%s]:\n", target))
+				count := 0
+				for _, e := range entries {
+					if strings.HasPrefix(e.Name(), ".") {
+						continue
+					}
+					isD := ""
+					if e.IsDir() {
+						isD = "/"
+					}
+					sb.WriteString(fmt.Sprintf("- %s%s\n", e.Name(), isD))
+					count++
+					if count >= 40 {
+						sb.WriteString("... (truncated)\n")
+						break
+					}
+				}
+			}
+		} else {
+			data, err := os.ReadFile(abs)
+			if err == nil {
+				limit := 64 * 1024
+				content := string(data)
+				truncated := ""
+				if len(data) > limit {
+					content = string(data[:limit])
+					truncated = "\n... (truncated)"
+				}
+				sb.WriteString(fmt.Sprintf("\n[File Context for @%s]:\n```\n%s%s\n```\n", target, content, truncated))
+			}
+		}
+	}
+
+	return sb.String()
+}
+
 func (a *App) Chat(message string) (ai.Reply, error) {
 	text := strings.TrimSpace(message)
 	if text == "" {
@@ -500,30 +582,135 @@ func (a *App) Chat(message string) (ai.Reply, error) {
 		}
 	}
 	system := ai.SystemPrompt(root, treeText)
-	ctx := a.ctx
-	if ctx == nil {
-		ctx = context.Background()
+
+	augmentedPrompt := text
+	if root != "" {
+		if mentionCtx := a.resolveMentions(root, text); mentionCtx != "" {
+			augmentedPrompt = text + "\n\n" + mentionCtx
+		}
 	}
 
-	reply, err := ai.Run(ctx, ai.RunRequest{
+	parentCtx := a.ctx
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	chatCtx, chatCancel := context.WithCancel(parentCtx)
+	a.chatMu.Lock()
+	a.chatCancel = chatCancel
+	a.chatMu.Unlock()
+	defer func() {
+		a.chatMu.Lock()
+		a.chatCancel = nil
+		a.chatMu.Unlock()
+		chatCancel()
+	}()
+
+	turnID := fmt.Sprintf("turn-%d", time.Now().UnixMilli())
+	a.snapshots.BeginTurn(turnID)
+	hasFileChanges := false
+
+	reply, err := ai.Run(chatCtx, ai.RunRequest{
 		Mode:    mode,
 		APIKey:  key,
 		System:  system,
 		History: history,
-		User:    text,
+		User:    augmentedPrompt,
 		Root:    root,
+		OnBeforeAction: func(name string, args map[string]any) {
+			if root == "" {
+				return
+			}
+			switch name {
+			case "write_file":
+				p, _ := args["path"].(string)
+				if p == "" {
+					return
+				}
+				abs, err := fsutil.Resolve(root, p)
+				if err != nil {
+					return
+				}
+				if _, statErr := os.Stat(abs); statErr == nil {
+					a.snapshots.RecordModify(turnID, abs)
+				}
+			case "edit_file":
+				p, _ := args["path"].(string)
+				if p == "" {
+					return
+				}
+				abs, err := fsutil.Resolve(root, p)
+				if err != nil {
+					return
+				}
+				if _, statErr := os.Stat(abs); statErr == nil {
+					a.snapshots.RecordModify(turnID, abs)
+				}
+			case "delete_file":
+				p, _ := args["path"].(string)
+				if p == "" {
+					return
+				}
+				abs, err := fsutil.Resolve(root, p)
+				if err != nil {
+					return
+				}
+				a.snapshots.RecordDelete(turnID, abs)
+			}
+		},
 		OnAction: func(action agent.Action) {
 			if a.ctx != nil {
 				runtime.EventsEmit(a.ctx, "agent:tool", action)
 			}
-			if action.OK && (action.Name == "write_file" || action.Name == "delete_file" || action.Name == "run_command") {
-				a.emitFSChanged()
+			if action.OK {
+				switch action.Name {
+				case "write_file":
+					p := action.Detail
+					if root != "" && p != "" {
+						abs, resolveErr := fsutil.Resolve(root, p)
+						if resolveErr == nil {
+							if !a.snapshots.HasPending(turnID) || !fileInTurn(a.snapshots, turnID, abs) {
+								a.snapshots.RecordCreate(turnID, abs)
+							}
+						}
+					}
+					hasFileChanges = true
+					a.emitFSChanged()
+					a.emitEditorReload()
+				case "edit_file":
+					hasFileChanges = true
+					a.emitFSChanged()
+					a.emitEditorReload()
+				case "delete_file":
+					hasFileChanges = true
+					a.emitFSChanged()
+					a.emitEditorReload()
+				case "rename_file":
+					hasFileChanges = true
+					a.emitFSChanged()
+					a.emitEditorReload()
+				case "create_dir":
+					a.emitFSChanged()
+				case "run_command":
+					a.emitFSChanged()
+				}
 			}
 		},
 	})
 	if err != nil {
 		return reply, err
 	}
+
+	if hasFileChanges && a.ctx != nil {
+		changes := a.snapshots.GetPendingChanges(turnID)
+		if len(changes) > 0 {
+			runtime.EventsEmit(a.ctx, "agent:file-changes", map[string]any{
+				"turnID":  turnID,
+				"changes": changes,
+			})
+		}
+	}
+
+	a.snapshots.Cleanup(10)
 
 	a.mu.Lock()
 	a.chatHistory = append(a.chatHistory, ai.Message{Role: "user", Content: text}, ai.Message{Role: "assistant", Content: reply.Text})
@@ -905,6 +1092,60 @@ func (a *App) emitFSChanged() {
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "fs:changed")
 	}
+}
+
+func (a *App) emitEditorReload() {
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "editor:reload")
+	}
+}
+
+func fileInTurn(sm *agent.SnapshotManager, turnID, absPath string) bool {
+	changes := sm.GetPendingChanges(turnID)
+	for _, c := range changes {
+		if c.Path == absPath {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *App) CancelChat() {
+	a.chatMu.Lock()
+	defer a.chatMu.Unlock()
+	if a.chatCancel != nil {
+		a.chatCancel()
+	}
+}
+
+func (a *App) GetPendingFileChanges(turnID string) []agent.FileChange {
+	return a.snapshots.GetPendingChanges(turnID)
+}
+
+func (a *App) AcceptAllFileChanges(turnID string) {
+	a.snapshots.AcceptAll(turnID)
+}
+
+func (a *App) RejectAllFileChanges(turnID string) error {
+	err := a.snapshots.RejectAll(turnID)
+	if err == nil {
+		a.emitFSChanged()
+		a.emitEditorReload()
+	}
+	return err
+}
+
+func (a *App) AcceptFileChange(turnID, filePath string) {
+	a.snapshots.AcceptFile(turnID, filePath)
+}
+
+func (a *App) RejectFileChange(turnID, filePath string) error {
+	err := a.snapshots.RejectFile(turnID, filePath)
+	if err == nil {
+		a.emitFSChanged()
+		a.emitEditorReload()
+	}
+	return err
 }
 
 func (a *App) persist(err error) {

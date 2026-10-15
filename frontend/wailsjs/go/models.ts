@@ -18,6 +18,24 @@ export namespace agent {
 	        this.error = source["error"];
 	    }
 	}
+	export class FileChange {
+	    path: string;
+	    action: string;
+	    originalContent?: string;
+	    newContent?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileChange(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.action = source["action"];
+	        this.originalContent = source["originalContent"];
+	        this.newContent = source["newContent"];
+	    }
+	}
 
 }
 

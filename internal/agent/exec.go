@@ -62,6 +62,21 @@ func run(root, name string, args map[string]any) (string, error) {
 			return "", err
 		}
 		return "wrote " + path, nil
+	case "edit_file":
+		path := argString(args, "path")
+		oldText := argString(args, "old_text")
+		newText := argString(args, "new_text")
+		if path == "" {
+			return "", fmt.Errorf("path is required")
+		}
+		if oldText == "" {
+			return "", fmt.Errorf("old_text is required")
+		}
+		count, err := fsutil.EditFile(root, path, oldText, newText)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("edited %s (%d replacement(s))", path, count), nil
 	case "delete_file":
 		path := argString(args, "path")
 		if path == "" {
@@ -71,6 +86,50 @@ func run(root, name string, args map[string]any) (string, error) {
 			return "", err
 		}
 		return "deleted " + path, nil
+	case "rename_file":
+		oldPath := argString(args, "old_path")
+		newPath := argString(args, "new_path")
+		if oldPath == "" || newPath == "" {
+			return "", fmt.Errorf("old_path and new_path are required")
+		}
+		if err := fsutil.RenameOrMove(root, oldPath, newPath); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("renamed %s → %s", oldPath, newPath), nil
+	case "create_dir":
+		path := argString(args, "path")
+		if path == "" {
+			return "", fmt.Errorf("path is required")
+		}
+		if err := fsutil.CreateDir(root, path); err != nil {
+			return "", err
+		}
+		return "created directory " + path, nil
+	case "search_files":
+		query := argString(args, "query")
+		if query == "" {
+			return "", fmt.Errorf("query is required")
+		}
+		isRegex := argBool(args, "is_regex")
+		caseSensitive := argBool(args, "case_sensitive")
+		include := argString(args, "include")
+		result, err := fsutil.SearchFiles(root, query, isRegex, caseSensitive, include)
+		if err != nil {
+			return "", err
+		}
+		raw, err := json.Marshal(result)
+		return string(raw), err
+	case "get_file_info":
+		path := argString(args, "path")
+		if path == "" {
+			return "", fmt.Errorf("path is required")
+		}
+		info, err := fsutil.GetFileInfo(root, path)
+		if err != nil {
+			return "", err
+		}
+		raw, err := json.Marshal(info)
+		return string(raw), err
 	case "map_project_tree":
 		depth := argInt(args, "maxDepth", 5)
 		if depth > 8 {
@@ -99,12 +158,18 @@ func run(root, name string, args map[string]any) (string, error) {
 
 func summarize(name string, args map[string]any) string {
 	switch name {
-	case "list_dir", "read_file", "write_file", "delete_file":
+	case "list_dir", "read_file", "write_file", "delete_file", "create_dir", "get_file_info":
 		path := argString(args, "path")
 		if path == "" {
 			path = "."
 		}
 		return path
+	case "edit_file":
+		return argString(args, "path")
+	case "rename_file":
+		return fmt.Sprintf("%s → %s", argString(args, "old_path"), argString(args, "new_path"))
+	case "search_files":
+		return argString(args, "query")
 	case "run_command":
 		return argString(args, "command")
 	case "map_project_tree":
@@ -155,6 +220,26 @@ func argInt(args map[string]any, key string, fallback int) int {
 		return int(n)
 	default:
 		return fallback
+	}
+}
+
+func argBool(args map[string]any, key string) bool {
+	if args == nil {
+		return false
+	}
+	v, ok := args[key]
+	if !ok || v == nil {
+		return false
+	}
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		return t == "true" || t == "1"
+	case float64:
+		return t != 0
+	default:
+		return false
 	}
 }
 

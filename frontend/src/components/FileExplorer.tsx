@@ -187,6 +187,30 @@ export function FileExplorer({onOpenFile, activePath, gitEntries}: Props) {
         setInlineInput({type: 'new-file', parentPath, indexPath});
     }
 
+    function handleTreeDoubleClick(e: React.MouseEvent) {
+        if (!root) return;
+        if ((e.target as HTMLElement).closest('.inline-file-input')) return;
+        if ((e.target as HTMLElement).closest('.explorer-header-icons')) return;
+        if ((e.target as HTMLElement).closest('.open-folder-btn')) return;
+        handleNewFile(root, []);
+    }
+
+    async function handleFolderDoubleClick(node: NodeState, indexPath: number[]) {
+        const next = structuredClone(nodes) as NodeState[];
+        const target = getNode(next, indexPath);
+        if (target) {
+            if (!target.children || target.children.length === 0) {
+                try {
+                    target.children = (await ListDir(target.entry.path)).map((entry) => ({entry}));
+                } catch {
+                }
+            }
+            target.expanded = true;
+            setNodes(next);
+        }
+        handleNewFile(node.entry.path, indexPath);
+    }
+
     function handleNewFolder(parentPath: string, indexPath: number[]) {
         setContextMenu(null);
         setInlineInput({type: 'new-folder', parentPath, indexPath});
@@ -312,7 +336,7 @@ export function FileExplorer({onOpenFile, activePath, gitEntries}: Props) {
                 )}
             </div>
             {error ? <div className="pane-error">{error}</div> : null}
-            <div className="explorer-tree" onContextMenu={handleRootContextMenu}>
+            <div className="explorer-tree" onContextMenu={handleRootContextMenu} onDoubleClick={handleTreeDoubleClick}>
                 {inlineInput && (inlineInput.type === 'new-file' || inlineInput.type === 'new-folder') && inlineInput.parentPath === root && (
                     <InlineFileInput
                         defaultValue=""
@@ -335,6 +359,8 @@ export function FileExplorer({onOpenFile, activePath, gitEntries}: Props) {
                         inlineInput={inlineInput}
                         onInlineSubmit={handleInlineSubmit}
                         onInlineCancel={() => setInlineInput(null)}
+                        onNewFile={handleNewFile}
+                        onFolderDoubleClick={handleFolderDoubleClick}
                     />
                 ))}
             </div>
@@ -533,6 +559,8 @@ function TreeItem({
     inlineInput,
     onInlineSubmit,
     onInlineCancel,
+    onNewFile,
+    onFolderDoubleClick,
 }: {
     node: NodeState;
     depth: number;
@@ -545,6 +573,8 @@ function TreeItem({
     inlineInput: InlineInputState;
     onInlineSubmit: (name: string) => void;
     onInlineCancel: () => void;
+    onNewFile?: (parentPath: string, indexPath: number[]) => void;
+    onFolderDoubleClick?: (node: NodeState, indexPath: number[]) => void;
 }) {
     const active = node.entry.path === activePath;
     const isDir = isDirectory(node.entry);
@@ -613,6 +643,15 @@ function TreeItem({
                 style={{paddingLeft: 4 + depth * 16}}
                 onClick={() => onToggle(indexPath, node)}
                 onContextMenu={e => onContextMenu(e, node, indexPath)}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (isDir) {
+                        onFolderDoubleClick?.(node, indexPath);
+                    } else {
+                        const parent = node.entry.path.substring(0, Math.max(node.entry.path.lastIndexOf('/'), node.entry.path.lastIndexOf('\\')));
+                        onNewFile?.(parent || root, indexPath.slice(0, -1));
+                    }
+                }}
                 title={node.entry.path}
             >
                 {isDir ? (
@@ -652,6 +691,8 @@ function TreeItem({
                     inlineInput={inlineInput}
                     onInlineSubmit={onInlineSubmit}
                     onInlineCancel={onInlineCancel}
+                    onNewFile={onNewFile}
+                    onFolderDoubleClick={onFolderDoubleClick}
                 />
             ))}
         </>

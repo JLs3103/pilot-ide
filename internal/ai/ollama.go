@@ -18,6 +18,7 @@ type ollamaChatRequest struct {
 	Messages []ollamaMsg      `json:"messages"`
 	Stream   bool             `json:"stream"`
 	Tools    []map[string]any `json:"tools,omitempty"`
+	Options  map[string]any   `json:"options,omitempty"`
 }
 
 type ollamaMsg struct {
@@ -88,6 +89,14 @@ func runOllama(ctx context.Context, baseURL, model, system string, history []Mes
 			if text == "" {
 				return "", actions, emptyReply(ModeLocal, model)
 			}
+			if round == 0 && len(actions) == 0 && isActionPrompt(userText) && isClaimOfAction(text) {
+				msgs = append(msgs, rawMsg)
+				msgs = append(msgs, ollamaMsg{
+					Role:    "user",
+					Content: "You did NOT execute any tool call to perform this operation. You MUST invoke the appropriate tool (e.g. delete_file, write_file, edit_file) to actually make changes to the filesystem. Call the tool now.",
+				})
+				continue
+			}
 			return text, actions, nil
 		}
 
@@ -102,6 +111,27 @@ func runOllama(ctx context.Context, baseURL, model, system string, history []Mes
 	return "", actions, stopAfterTools(actions, model)
 }
 
+func isActionPrompt(prompt string) bool {
+	p := strings.ToLower(prompt)
+	return strings.Contains(p, "hapus") || strings.Contains(p, "delete") ||
+		strings.Contains(p, "remove") || strings.Contains(p, "buat") ||
+		strings.Contains(p, "bikin") || strings.Contains(p, "create") ||
+		strings.Contains(p, "edit") || strings.Contains(p, "ubah") ||
+		strings.Contains(p, "ganti") || strings.Contains(p, "rename")
+}
+
+func isClaimOfAction(text string) bool {
+	t := strings.ToLower(text)
+	return strings.Contains(t, "telah dihapus") || strings.Contains(t, "sudah dihapus") ||
+		strings.Contains(t, "berhasil dihapus") || strings.Contains(t, "has been deleted") ||
+		strings.Contains(t, "is deleted") || strings.Contains(t, "have deleted") ||
+		strings.Contains(t, "telah dibuat") || strings.Contains(t, "sudah dibuat") ||
+		strings.Contains(t, "berhasil dibuat") || strings.Contains(t, "has been created") ||
+		strings.Contains(t, "telah diubah") || strings.Contains(t, "sudah diubah") ||
+		strings.Contains(t, "berhasil diubah") || strings.Contains(t, "has been modified") ||
+		strings.Contains(t, "has been updated")
+}
+
 func ollamaGenerate(ctx context.Context, baseURL, model string, msgs []ollamaMsg, withTools bool) (modelTurn, ollamaMsg, error) {
 	callCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
@@ -110,6 +140,7 @@ func ollamaGenerate(ctx context.Context, baseURL, model string, msgs []ollamaMsg
 		Model:    model,
 		Messages: msgs,
 		Stream:   false,
+		Options:  map[string]any{"temperature": 0.0},
 	}
 	if withTools {
 		payload.Tools = ollamaTools()
@@ -128,6 +159,9 @@ func ollamaGenerate(ctx context.Context, baseURL, model string, msgs []ollamaMsg
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if ctx.Err() == context.Canceled || callCtx.Err() == context.Canceled || strings.Contains(err.Error(), "canceled") || strings.Contains(err.Error(), "cancelled") {
+			return modelTurn{}, ollamaMsg{}, fmt.Errorf("context canceled")
+		}
 		if callCtx.Err() == context.DeadlineExceeded {
 			return modelTurn{}, ollamaMsg{}, fmt.Errorf("Ollama timed out. Is model %s pulled and running?", model)
 		}

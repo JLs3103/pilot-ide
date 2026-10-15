@@ -15,7 +15,12 @@ var knownTools = map[string]struct{}{
 	"list_dir":         {},
 	"read_file":        {},
 	"write_file":       {},
+	"edit_file":        {},
 	"delete_file":      {},
+	"rename_file":      {},
+	"create_dir":       {},
+	"search_files":     {},
+	"get_file_info":    {},
 	"map_project_tree": {},
 	"run_command":      {},
 }

@@ -1,0 +1,187 @@
+.markdown-body {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e2e8f0;
+    width: 100%;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.markdown-body .md-p {
+    margin: 0 0 10px 0;
+    line-height: 1.6;
+}
+
+.markdown-body .md-p:last-child {
+    margin-bottom: 0;
+}
+
+.markdown-body .md-h1 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #5cb3ff;
+    margin: 14px 0 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #233347;
+}
+
+.markdown-body .md-h2 {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #79c0ff;
+    margin: 12px 0 6px 0;
+}
+
+.markdown-body .md-h3 {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #93c5fd;
+    margin: 10px 0 4px 0;
+}
+
+.markdown-body .md-h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #bfdbfe;
+    margin: 8px 0 4px 0;
+}
+
+.markdown-body .md-strong {
+    font-weight: 600;
+    color: #f1f5f9;
+}
+
+.markdown-body .md-em {
+    font-style: italic;
+    color: #cbd5e1;
+}
+
+.markdown-body .md-inline-code {
+    background: #1e2838;
+    color: #93c5fd;
+    border: 1px solid #2a3b50;
+    border-radius: 4px;
+    padding: 1.5px 5px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+}
+
+.markdown-body .md-mention-pill {
+    background: rgba(59, 130, 246, 0.22);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.45);
+    border-radius: 4px;
+    padding: 1.5px 6px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.markdown-body .md-link {
+    color: #58a6ff;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 0.12s ease;
+}
+
+.markdown-body .md-link:hover {
+    color: #79c0ff;
+}
+
+.markdown-body .md-ul,
+.markdown-body .md-ol {
+    margin: 0 0 10px 0;
+    padding-left: 20px;
+}
+
+.markdown-body .md-li {
+    margin: 3px 0;
+    line-height: 1.5;
+}
+
+.markdown-body .md-blockquote {
+    border-left: 3px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+    margin: 8px 0 10px 0;
+    padding: 6px 12px;
+    color: #94a3b8;
+    border-radius: 0 4px 4px 0;
+    font-style: italic;
+}
+
+.markdown-body .md-hr {
+    border: none;
+    border-top: 1px solid #28374d;
+    margin: 12px 0;
+}
+
+.md-code-block-wrapper {
+    background: #0d1219;
+    border: 1px solid #233144;
+    border-radius: 8px;
+    margin: 8px 0 12px 0;
+    overflow: hidden;
+}
+
+.md-code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 10px;
+    background: #131b26;
+    border-bottom: 1px solid #212d3d;
+    font-size: 11px;
+    color: #7e94b0;
+    font-family: Consolas, "Courier New", monospace;
+    user-select: none;
+}
+
+.md-code-lang {
+    text-transform: lowercase;
+    font-weight: 500;
+}
+
+.md-code-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    border: none;
+    color: #7e94b0;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.12s ease;
+}
+
+.md-code-copy-btn:hover {
+    background: #1d2737;
+    color: #e2e8f0;
+}
+
+.md-copy-check {
+    color: #22c55e;
+}
+
+.md-pre {
+    margin: 0;
+    padding: 10px 12px;
+    overflow-x: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #e2e8f0;
+    background: transparent;
+    scrollbar-width: thin;
+    scrollbar-color: #2a384c transparent;
+}
+
+.md-pre::-webkit-scrollbar {
+    height: 4px;
+}
+
+.md-pre::-webkit-scrollbar-thumb {
+    background: #2a384c;
+    border-radius: 2px;
+}

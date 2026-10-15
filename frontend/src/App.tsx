@@ -334,6 +334,36 @@ function App() {
         };
     }, [persistTabs, loadRecentProjects]);
 
+    useEffect(() => {
+        const cancel = EventsOn('editor:reload', () => {
+            setTabs(prev => {
+                const reloadPromises = prev.map(async (tab) => {
+                    if (tab.path.startsWith('new:')) return tab;
+                    try {
+                        const freshContent = await ReadFile(tab.path);
+                        if (freshContent !== tab.saved) {
+                            const isDirty = tab.value !== tab.saved;
+                            return {
+                                ...tab,
+                                saved: freshContent,
+                                value: isDirty ? tab.value : freshContent,
+                            };
+                        }
+                    } catch {
+                    }
+                    return tab;
+                });
+                void Promise.all(reloadPromises).then(updated => {
+                    setTabs(updated.filter(t => t !== null));
+                });
+                return prev;
+            });
+        });
+        return () => {
+            if (cancel) cancel();
+        };
+    }, []);
+
     const openRecentProject = useCallback(async (dir: string) => {
         try {
             await OpenProjectPath(dir);

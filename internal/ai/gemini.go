@@ -147,6 +147,9 @@ func geminiGenerate(ctx context.Context, apiKey, model, system string, contents 
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if ctx.Err() == context.Canceled || callCtx.Err() == context.Canceled || strings.Contains(err.Error(), "canceled") || strings.Contains(err.Error(), "cancelled") {
+			return modelTurn{}, fmt.Errorf("context canceled")
+		}
 		if callCtx.Err() == context.DeadlineExceeded {
 			return modelTurn{}, fmt.Errorf("Gemini timed out")
 		}

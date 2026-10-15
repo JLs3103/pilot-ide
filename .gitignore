@@ -1,5 +1,8 @@
 build/bin
+debug/
 documentation/
 node_modules
 frontend/dist
 reference_image/
+
+*.exe
