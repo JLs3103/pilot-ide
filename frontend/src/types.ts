@@ -18,6 +18,7 @@ export type AIStatus = {
     hasGeminiKey: boolean;
     ollamaURL: string;
     ollamaUp: boolean;
+    ollamaAutoStart: boolean;
 };
 
 export type ChatReply = {

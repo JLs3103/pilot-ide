@@ -92,9 +92,20 @@ func (a *App) startup(ctx context.Context) {
 			a.startWatcher(snap.ProjectRoot)
 		}
 	}
+
+	startedByUs, err := ai.EnsureOllamaRunning(ctx)
+	if err != nil {
+		runtime.LogInfo(ctx, "Ollama auto-launch: "+err.Error())
+	} else if startedByUs {
+		runtime.LogInfo(ctx, "Ollama started automatically by Pilot IDE")
+	}
 }
 
-func (a *App) shutdown(_ context.Context) {
+func (a *App) domReady(ctx context.Context) {
+}
+
+func (a *App) shutdown(ctx context.Context) {
+	ai.StopOllama()
 	a.stopWatcher()
 	if a.store != nil {
 		_ = a.store.Close()
@@ -415,12 +426,13 @@ func (a *App) GetAIStatus() ai.Status {
 
 	url := ai.OllamaBaseURL()
 	return ai.Status{
-		Mode:         mode,
-		LocalModel:   ai.DefaultLocalModel,
-		CloudModel:   ai.DefaultCloudModel,
-		HasGeminiKey: hasKey,
-		OllamaURL:    url,
-		OllamaUp:     ai.PingOllama(context.Background(), url),
+		Mode:            mode,
+		LocalModel:      ai.DefaultLocalModel,
+		CloudModel:      ai.DefaultCloudModel,
+		HasGeminiKey:    hasKey,
+		OllamaURL:       url,
+		OllamaUp:        ai.PingOllama(context.Background(), url),
+		OllamaAutoStart: ai.DidWeStartOllama(),
 	}
 }
 
@@ -757,9 +769,9 @@ func (a *App) ReplaceInProject(search, replace string, isRegex, caseSensitive bo
 }
 
 type GitStatusEntry struct {
-	Path    string `json:"path"`
-	Status  string `json:"status"`
-	Staged  bool   `json:"staged"`
+	Path   string `json:"path"`
+	Status string `json:"status"`
+	Staged bool   `json:"staged"`
 }
 
 type GitBranchInfo struct {

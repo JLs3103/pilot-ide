@@ -7,7 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"pilot-ide/internal/agent"
@@ -226,4 +232,116 @@ func trimBody(raw []byte) string {
 		return s[:400] + "…"
 	}
 	return s
+}
+
+type OllamaProcess struct {
+	Cmd    *exec.Cmd
+	Cancel context.CancelFunc
+}
+
+var ollamaProcess *OllamaProcess
+var ollamaProcessMu sync.Mutex
+
+func findOllamaExecutable() (string, error) {
+	if path, err := exec.LookPath("ollama"); err == nil {
+		return path, nil
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("could not determine home directory: %w", err)
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		candidates := []string{
+			filepath.Join(homeDir, "AppData", "Local", "Programs", "Ollama", "ollama.exe"),
+			filepath.Join(homeDir, "AppData", "Local", "Ollama", "ollama.exe"),
+		}
+		for _, candidate := range candidates {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate, nil
+			}
+		}
+	case "darwin":
+		candidate := filepath.Join(homeDir, "Applications", "Ollama.app", "Contents", "MacOS", "Ollama")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+	case "linux":
+		candidate := filepath.Join(homeDir, ".local", "bin", "ollama")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+	}
+
+	return "", fmt.Errorf("Ollama executable not found in PATH or common installation directories")
+}
+
+func EnsureOllamaRunning(ctx context.Context) (bool, error) {
+	baseURL := OllamaBaseURL()
+
+	if PingOllama(ctx, baseURL) {
+		return false, nil
+	}
+
+	ollamaPath, err := findOllamaExecutable()
+	if err != nil {
+		return false, fmt.Errorf("could not find Ollama executable: %w", err)
+	}
+
+	ollamaCtx, cancel := context.WithCancel(context.Background())
+	cmd := exec.CommandContext(ollamaCtx, ollamaPath, "serve")
+
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    true,
+			CreationFlags: 0x08000000,
+		}
+	}
+
+	if err := cmd.Start(); err != nil {
+		cancel()
+		return false, fmt.Errorf("failed to start Ollama: %w", err)
+	}
+
+	ollamaProcessMu.Lock()
+	ollamaProcess = &OllamaProcess{
+		Cmd:    cmd,
+		Cancel: cancel,
+	}
+	ollamaProcessMu.Unlock()
+
+	for i := 0; i < 3; i++ {
+		time.Sleep(2 * time.Second)
+		if PingOllama(ctx, baseURL) {
+			return true, nil
+		}
+	}
+
+	cancel()
+	ollamaProcessMu.Lock()
+	ollamaProcess = nil
+	ollamaProcessMu.Unlock()
+
+	return false, fmt.Errorf("Ollama started but failed to respond after 3 retries")
+}
+
+func StopOllama() {
+	ollamaProcessMu.Lock()
+	defer ollamaProcessMu.Unlock()
+
+	if ollamaProcess != nil {
+		ollamaProcess.Cancel()
+		if ollamaProcess.Cmd.Process != nil {
+			ollamaProcess.Cmd.Process.Kill()
+		}
+		ollamaProcess = nil
+	}
+}
+
+func DidWeStartOllama() bool {
+	ollamaProcessMu.Lock()
+	defer ollamaProcessMu.Unlock()
+	return ollamaProcess != nil
 }

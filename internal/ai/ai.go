@@ -30,12 +30,13 @@ type Reply struct {
 }
 
 type Status struct {
-	Mode         string `json:"mode"`
-	LocalModel   string `json:"localModel"`
-	CloudModel   string `json:"cloudModel"`
-	HasGeminiKey bool   `json:"hasGeminiKey"`
-	OllamaURL    string `json:"ollamaURL"`
-	OllamaUp     bool   `json:"ollamaUp"`
+	Mode           string `json:"mode"`
+	LocalModel     string `json:"localModel"`
+	CloudModel     string `json:"cloudModel"`
+	HasGeminiKey   bool   `json:"hasGeminiKey"`
+	OllamaURL      string `json:"ollamaURL"`
+	OllamaUp       bool   `json:"ollamaUp"`
+	OllamaAutoStart bool  `json:"ollamaAutoStart"`
 }
 
 func NormalizeMode(mode string) string {

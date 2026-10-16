@@ -787,7 +787,9 @@ export function ChatPanel() {
     const mode = status?.mode ?? 'local';
     const chip = mode === 'cloud'
         ? (status?.hasGeminiKey ? 'Cloud' : 'Cloud · no key')
-        : (status?.ollamaUp ? 'Local' : 'Local · offline');
+        : (status?.ollamaUp
+            ? (status?.ollamaAutoStart ? 'Local · auto-started' : 'Local')
+            : 'Local · offline');
 
     const unresolvedReviews = pendingReviews.filter(r => !r.resolved);
 
