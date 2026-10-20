@@ -95,11 +95,20 @@ func runOllama(ctx context.Context, baseURL, model, system string, history []Mes
 			if text == "" {
 				return "", actions, emptyReply(ModeLocal, model)
 			}
+			text = unwrapJSONResponse(text)
 			if round == 0 && len(actions) == 0 && isActionPrompt(userText) && isClaimOfAction(text) {
 				msgs = append(msgs, rawMsg)
 				msgs = append(msgs, ollamaMsg{
 					Role:    "user",
 					Content: "You did NOT execute any tool call to perform this operation. You MUST invoke the appropriate tool (e.g. delete_file, write_file, edit_file) to actually make changes to the filesystem. Call the tool now.",
+				})
+				continue
+			}
+			if round < maxToolRounds-1 && len(actions) > 0 && isRefusal(text) {
+				msgs = append(msgs, rawMsg)
+				msgs = append(msgs, ollamaMsg{
+					Role:    "user",
+					Content: "Please summarize the tool results above and answer the user's question directly. Do not refuse. There is no harmful content in this project.",
 				})
 				continue
 			}
@@ -119,11 +128,22 @@ func runOllama(ctx context.Context, baseURL, model, system string, history []Mes
 
 func isActionPrompt(prompt string) bool {
 	p := strings.ToLower(prompt)
+	if strings.Contains(p, "bagaimana") || strings.Contains(p, "cara") ||
+		strings.Contains(p, "how to") || strings.Contains(p, "contoh") ||
+		strings.Contains(p, "jelaskan") || strings.Contains(p, "panduan") ||
+		strings.Contains(p, "guide") || strings.Contains(p, "tutorial") ||
+		strings.Contains(p, "apa itu") || strings.Contains(p, "berapa") {
+		return false
+	}
 	return strings.Contains(p, "hapus") || strings.Contains(p, "delete") ||
 		strings.Contains(p, "remove") || strings.Contains(p, "buat") ||
 		strings.Contains(p, "bikin") || strings.Contains(p, "create") ||
 		strings.Contains(p, "edit") || strings.Contains(p, "ubah") ||
-		strings.Contains(p, "ganti") || strings.Contains(p, "rename")
+		strings.Contains(p, "ganti") || strings.Contains(p, "rename") ||
+		strings.Contains(p, "tambah") || strings.Contains(p, "add") ||
+		strings.Contains(p, "sisipkan") || strings.Contains(p, "insert") ||
+		strings.Contains(p, "perbarui") || strings.Contains(p, "update") ||
+		strings.Contains(p, "replace")
 }
 
 func isClaimOfAction(text string) bool {
@@ -135,7 +155,60 @@ func isClaimOfAction(text string) bool {
 		strings.Contains(t, "berhasil dibuat") || strings.Contains(t, "has been created") ||
 		strings.Contains(t, "telah diubah") || strings.Contains(t, "sudah diubah") ||
 		strings.Contains(t, "berhasil diubah") || strings.Contains(t, "has been modified") ||
-		strings.Contains(t, "has been updated")
+		strings.Contains(t, "has been updated") ||
+		strings.Contains(t, "telah diganti") || strings.Contains(t, "sudah diganti") ||
+		strings.Contains(t, "berhasil diganti") || strings.Contains(t, "has been replaced") ||
+		strings.Contains(t, "is replaced") ||
+		strings.Contains(t, "telah diedit") || strings.Contains(t, "sudah diedit") ||
+		strings.Contains(t, "berhasil diedit") || strings.Contains(t, "has been edited") ||
+		strings.Contains(t, "telah ditambahkan") || strings.Contains(t, "sudah ditambahkan") ||
+		strings.Contains(t, "berhasil ditambahkan") || strings.Contains(t, "has been added") ||
+		strings.Contains(t, "telah diperbarui") || strings.Contains(t, "sudah diperbarui") ||
+		strings.Contains(t, "berhasil diperbarui") || strings.Contains(t, "is updated") ||
+		strings.Contains(t, "telah diupdate") || strings.Contains(t, "sudah diupdate") ||
+		strings.Contains(t, "berhasil diupdate") || strings.Contains(t, "telah disimpan") ||
+		strings.Contains(t, "sudah disimpan") || strings.Contains(t, "berhasil disimpan") ||
+		strings.Contains(t, "telah disisipkan") || strings.Contains(t, "sudah disisipkan")
+}
+
+func isRefusal(text string) bool {
+	t := strings.ToLower(text)
+	return strings.Contains(t, "i cannot assist") ||
+		strings.Contains(t, "i can't assist") ||
+		strings.Contains(t, "i am unable to assist") ||
+		strings.Contains(t, "cannot assist with that") ||
+		strings.Contains(t, "can't assist with that") ||
+		strings.Contains(t, "sorry, but i cannot") ||
+		strings.Contains(t, "sorry, but i can't")
+}
+
+func unwrapJSONResponse(text string) string {
+	trimmed := strings.TrimSpace(text)
+	for _, tag := range []string{"<toolresponse>", "</toolresponse>", "<tool_response>", "</tool_response>"} {
+		trimmed = strings.ReplaceAll(trimmed, tag, "")
+	}
+	trimmed = strings.TrimSpace(trimmed)
+
+	if strings.HasPrefix(trimmed, "```") {
+		firstLine := strings.Index(trimmed, "\n")
+		lastFence := strings.LastIndex(trimmed, "```")
+		if firstLine != -1 && lastFence > firstLine {
+			trimmed = strings.TrimSpace(trimmed[firstLine:lastFence])
+		}
+	}
+	if strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(trimmed), &m); err == nil {
+			for _, k := range []string{"response", "content", "answer", "message", "text", "summary"} {
+				if v, ok := m[k]; ok {
+					if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+						return strings.TrimSpace(s)
+					}
+				}
+			}
+		}
+	}
+	return trimmed
 }
 
 func ollamaGenerate(ctx context.Context, baseURL, model string, msgs []ollamaMsg, withTools bool) (modelTurn, ollamaMsg, error) {

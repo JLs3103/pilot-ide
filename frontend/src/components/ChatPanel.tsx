@@ -243,10 +243,27 @@ export function ChatPanel() {
         const offChanges = EventsOn('agent:file-changes', (...data: unknown[]) => {
             const event = data[0] as FileChangesEvent | undefined;
             if (!event?.turnID || !event.changes?.length) return;
-            setPendingReviews(prev => [
-                ...prev,
-                {turnID: event.turnID, changes: event.changes, resolved: false},
-            ]);
+            const uniqueChanges: FileChange[] = [];
+            const seen = new Set<string>();
+            for (const ch of event.changes) {
+                if (!seen.has(ch.path)) {
+                    seen.add(ch.path);
+                    uniqueChanges.push(ch);
+                }
+            }
+            if (uniqueChanges.length === 0) return;
+            setPendingReviews(prev => {
+                const idx = prev.findIndex(r => r.turnID === event.turnID);
+                if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = {turnID: event.turnID, changes: uniqueChanges, resolved: false};
+                    return copy;
+                }
+                return [
+                    ...prev,
+                    {turnID: event.turnID, changes: uniqueChanges, resolved: false},
+                ];
+            });
             void loadProjectTree();
         });
 

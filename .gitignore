@@ -6,3 +6,5 @@ frontend/dist
 reference_image/
 
 *.exe
+/test_*.txt
+/test_*.go

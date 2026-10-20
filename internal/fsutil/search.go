@@ -23,7 +23,7 @@ type SearchResult struct {
 	Total   int           `json:"total"`
 }
 
-const maxSearchResults = 500
+const maxSearchResults = 40
 
 var skipSearchDirs = map[string]bool{
 	".git": true, "node_modules": true, "dist": true,
@@ -63,10 +63,24 @@ func matchesGlob(name, pattern string) bool {
 	return false
 }
 
+func isLikelyRegex(query string) bool {
+	return strings.Contains(query, `\s`) || strings.Contains(query, `\w`) ||
+		strings.Contains(query, `\d`) || strings.Contains(query, `\b`) ||
+		strings.Contains(query, `\S`) || strings.Contains(query, `\W`) ||
+		strings.Contains(query, `\D`) || strings.Contains(query, `\B`) ||
+		strings.Contains(query, `.*`) || strings.Contains(query, `.+`) ||
+		strings.Contains(query, `(?i)`) || strings.Contains(query, `[a-z]`) ||
+		strings.Contains(query, `[A-Z]`) || strings.Contains(query, `[0-9]`)
+}
+
 func SearchFiles(root, query string, isRegex, caseSensitive bool, includePattern string) (SearchResult, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return SearchResult{}, err
+	}
+
+	if !isRegex && isLikelyRegex(query) {
+		isRegex = true
 	}
 
 	var re *regexp.Regexp
@@ -75,11 +89,14 @@ func SearchFiles(root, query string, isRegex, caseSensitive bool, includePattern
 		if !caseSensitive {
 			pattern = "(?i)" + pattern
 		}
+		var err error
 		re, err = regexp.Compile(pattern)
 		if err != nil {
-			return SearchResult{}, fmt.Errorf("invalid regex: %v", err)
+			isRegex = false
+			re = nil
 		}
-	} else if !caseSensitive {
+	}
+	if !isRegex && !caseSensitive {
 		re, err = regexp.Compile("(?i)" + regexp.QuoteMeta(query))
 		if err != nil {
 			return SearchResult{}, err
@@ -87,6 +104,7 @@ func SearchFiles(root, query string, isRegex, caseSensitive bool, includePattern
 	}
 
 	var matches []SearchMatch
+	total := 0
 	_ = filepath.WalkDir(abs, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return nil
@@ -108,23 +126,32 @@ func SearchFiles(root, query string, isRegex, caseSensitive bool, includePattern
 			return nil
 		}
 
-		fileMatches := searchInFile(path, query, re, caseSensitive)
-		matches = append(matches, fileMatches...)
+		displayPath := path
+		if rel, err := filepath.Rel(abs, path); err == nil {
+			displayPath = filepath.ToSlash(rel)
+		}
+
+		fileMatches := searchInFile(displayPath, path, query, re, caseSensitive)
+		total += len(fileMatches)
+		if len(matches) < maxSearchResults {
+			remaining := maxSearchResults - len(matches)
+			if len(fileMatches) > remaining {
+				matches = append(matches, fileMatches[:remaining]...)
+			} else {
+				matches = append(matches, fileMatches...)
+			}
+		}
 		if len(matches) >= maxSearchResults {
 			return fmt.Errorf("limit")
 		}
 		return nil
 	})
 
-	if len(matches) > maxSearchResults {
-		matches = matches[:maxSearchResults]
-	}
-
-	return SearchResult{Matches: matches, Total: len(matches)}, nil
+	return SearchResult{Matches: matches, Total: total}, nil
 }
 
-func searchInFile(path, query string, re *regexp.Regexp, caseSensitive bool) []SearchMatch {
-	f, err := os.Open(path)
+func searchInFile(displayPath, absPath, query string, re *regexp.Regexp, caseSensitive bool) []SearchMatch {
+	f, err := os.Open(absPath)
 	if err != nil {
 		return nil
 	}
@@ -138,14 +165,18 @@ func searchInFile(path, query string, re *regexp.Regexp, caseSensitive bool) []S
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
+		matchText := line
+		if len(matchText) > 160 {
+			matchText = matchText[:160] + "…"
+		}
 		if re != nil {
 			locs := re.FindAllStringIndex(line, -1)
 			for _, loc := range locs {
 				matches = append(matches, SearchMatch{
-					File:       path,
+					File:       displayPath,
 					Line:       lineNum,
 					Column:     loc[0] + 1,
-					Text:       line,
+					Text:       matchText,
 					MatchStart: loc[0],
 					MatchEnd:   loc[1],
 				})
@@ -165,10 +196,10 @@ func searchInFile(path, query string, re *regexp.Regexp, caseSensitive bool) []S
 				}
 				absPos := idx + pos
 				matches = append(matches, SearchMatch{
-					File:       path,
+					File:       displayPath,
 					Line:       lineNum,
 					Column:     absPos + 1,
-					Text:       line,
+					Text:       matchText,
 					MatchStart: absPos,
 					MatchEnd:   absPos + len(query),
 				})

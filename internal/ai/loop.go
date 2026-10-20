@@ -67,6 +67,7 @@ func Run(ctx context.Context, req RunRequest) (Reply, error) {
 	} else {
 		text, actions, err = runOllama(ctx, OllamaBaseURL(), model, req.System, req.History, req.User, exec)
 	}
+	text = unwrapJSONResponse(text)
 	return Reply{Text: text, Mode: mode, Model: model, Actions: actions}, err
 }
 

@@ -12,10 +12,10 @@ func toolDeclarations() []map[string]any {
 			"path":    map[string]any{"type": "string", "description": "Path inside the project."},
 			"content": map[string]any{"type": "string", "description": "Full file contents to write."},
 		}, []string{"path", "content"}),
-		fn("edit_file", "Edit a file by replacing specific text. Use this instead of write_file when you only need to change part of a file. The old_text must match exactly (including whitespace and indentation).", map[string]any{
+		fn("edit_file", "Edit a file by replacing specific text. When inserting new lines at the top of a file, set old_text to the existing first line (e.g. 'Baris Satu') and new_text to the new line followed by the first line (e.g. '// comment\\nBaris Satu').", map[string]any{
 			"path":     map[string]any{"type": "string", "description": "Path of the file to edit."},
-			"old_text": map[string]any{"type": "string", "description": "The exact text to find and replace. Must match the file content exactly."},
-			"new_text": map[string]any{"type": "string", "description": "The replacement text."},
+			"old_text": map[string]any{"type": "string", "description": "The exact text to find and replace. To insert at the top of a file, pass the first line of the file (e.g. 'Baris Satu')."},
+			"new_text": map[string]any{"type": "string", "description": "The replacement text. When inserting at the top, include the new line followed by the first line (e.g. '// comment\\nBaris Satu')."},
 		}, []string{"path", "old_text", "new_text"}),
 		fn("delete_file", "Delete a single file inside the project. Directories are not allowed.", map[string]any{
 			"path": map[string]any{"type": "string", "description": "Path of the file to delete."},

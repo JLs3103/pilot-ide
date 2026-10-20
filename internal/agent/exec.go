@@ -52,25 +52,36 @@ func run(root, name string, args map[string]any) (string, error) {
 		raw, err := json.Marshal(rows)
 		return string(raw), err
 	case "read_file":
-		return fsutil.ReadFile(root, argString(args, "path"))
+		return fsutil.ReadFile(root, argFirstString(args, "path", "file_path", "filePath", "file"))
 	case "write_file":
-		path := argString(args, "path")
+		path := argFirstString(args, "path", "file_path", "filePath", "file")
 		if path == "" {
 			return "", fmt.Errorf("path is required")
 		}
-		if err := fsutil.WriteFile(root, path, argString(args, "content")); err != nil {
+		content := argFirstString(args, "content", "text")
+		if err := fsutil.WriteFile(root, path, content); err != nil {
 			return "", err
 		}
 		return "wrote " + path, nil
 	case "edit_file":
-		path := argString(args, "path")
-		oldText := argString(args, "old_text")
-		newText := argString(args, "new_text")
+		path := argFirstString(args, "path", "file_path", "filePath", "file")
+		oldText := argFirstString(args, "old_text", "oldText", "old", "target", "search", "find", "original", "target_text", "search_text", "old_content", "from", "before", "match")
+		if oldText == "" {
+			if l := argString(args, "line"); l != "" {
+				oldText = "line " + l
+			} else if pos := argString(args, "position"); pos != "" {
+				oldText = pos
+			}
+		}
+		newText := argFirstString(args, "new_text", "newText", "new", "content", "text", "replacement", "replace", "new_content", "to", "after", "insert")
 		if path == "" {
 			return "", fmt.Errorf("path is required")
 		}
 		if oldText == "" {
 			return "", fmt.Errorf("old_text is required")
+		}
+		if newText == "" {
+			return "", fmt.Errorf("new_text is required")
 		}
 		count, err := fsutil.EditFile(root, path, oldText, newText)
 		if err != nil {
@@ -78,7 +89,7 @@ func run(root, name string, args map[string]any) (string, error) {
 		}
 		return fmt.Sprintf("edited %s (%d replacement(s))", path, count), nil
 	case "delete_file":
-		path := argString(args, "path")
+		path := argFirstString(args, "path", "file_path", "filePath", "file")
 		if path == "" {
 			return "", fmt.Errorf("path is required")
 		}
@@ -87,8 +98,8 @@ func run(root, name string, args map[string]any) (string, error) {
 		}
 		return "deleted " + path, nil
 	case "rename_file":
-		oldPath := argString(args, "old_path")
-		newPath := argString(args, "new_path")
+		oldPath := argFirstString(args, "old_path", "oldPath", "old", "from", "source", "src")
+		newPath := argFirstString(args, "new_path", "newPath", "new", "to", "dest", "destination")
 		if oldPath == "" || newPath == "" {
 			return "", fmt.Errorf("old_path and new_path are required")
 		}
@@ -97,7 +108,7 @@ func run(root, name string, args map[string]any) (string, error) {
 		}
 		return fmt.Sprintf("renamed %s → %s", oldPath, newPath), nil
 	case "create_dir":
-		path := argString(args, "path")
+		path := argFirstString(args, "path", "dir", "dir_path", "dirPath", "directory")
 		if path == "" {
 			return "", fmt.Errorf("path is required")
 		}
@@ -106,21 +117,28 @@ func run(root, name string, args map[string]any) (string, error) {
 		}
 		return "created directory " + path, nil
 	case "search_files":
-		query := argString(args, "query")
+		query := argFirstString(args, "query", "search", "q", "pattern")
 		if query == "" {
 			return "", fmt.Errorf("query is required")
 		}
-		isRegex := argBool(args, "is_regex")
-		caseSensitive := argBool(args, "case_sensitive")
-		include := argString(args, "include")
+		isRegex := argBool(args, "is_regex") || argBool(args, "isRegex")
+		caseSensitive := argBool(args, "case_sensitive") || argBool(args, "caseSensitive")
+		include := argFirstString(args, "include", "pattern", "glob")
 		result, err := fsutil.SearchFiles(root, query, isRegex, caseSensitive, include)
 		if err != nil {
 			return "", err
 		}
-		raw, err := json.Marshal(result)
-		return string(raw), err
+		if len(result.Matches) == 0 {
+			return fmt.Sprintf("No matches found for query: %s", query), nil
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "Found %d match(es) for %q:\n", len(result.Matches), query)
+		for _, m := range result.Matches {
+			fmt.Fprintf(&b, "- %s:%d: %s\n", m.File, m.Line, strings.TrimSpace(m.Text))
+		}
+		return b.String(), nil
 	case "get_file_info":
-		path := argString(args, "path")
+		path := argFirstString(args, "path", "file_path", "filePath", "file")
 		if path == "" {
 			return "", fmt.Errorf("path is required")
 		}
@@ -193,6 +211,28 @@ func argString(args map[string]any, key string) string {
 	default:
 		return fmt.Sprint(t)
 	}
+}
+
+func argFirstString(args map[string]any, keys ...string) string {
+	if args == nil {
+		return ""
+	}
+	for _, key := range keys {
+		if v, ok := args[key]; ok && v != nil {
+			switch t := v.(type) {
+			case string:
+				if strings.TrimSpace(t) != "" {
+					return t
+				}
+			default:
+				s := strings.TrimSpace(fmt.Sprint(t))
+				if s != "" && s != "<nil>" {
+					return s
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func argInt(args map[string]any, key string, fallback int) int {

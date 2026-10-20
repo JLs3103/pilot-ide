@@ -98,6 +98,7 @@ export namespace ai {
 	    hasGeminiKey: boolean;
 	    ollamaURL: string;
 	    ollamaUp: boolean;
+	    ollamaAutoStart: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Status(source);
@@ -111,6 +112,7 @@ export namespace ai {
 	        this.hasGeminiKey = source["hasGeminiKey"];
 	        this.ollamaURL = source["ollamaURL"];
 	        this.ollamaUp = source["ollamaUp"];
+	        this.ollamaAutoStart = source["ollamaAutoStart"];
 	    }
 	}
 

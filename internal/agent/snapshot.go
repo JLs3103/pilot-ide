@@ -54,6 +54,11 @@ func (sm *SnapshotManager) BeginTurn(turnID string) {
 func (sm *SnapshotManager) RecordCreate(turnID, absPath string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
+	for _, s := range sm.turns[turnID] {
+		if s.Path == absPath {
+			return
+		}
+	}
 	sm.turns[turnID] = append(sm.turns[turnID], FileSnapshot{
 		Path:   absPath,
 		Action: ActionCreated,
@@ -64,6 +69,11 @@ func (sm *SnapshotManager) RecordModify(turnID, absPath string) {
 	original, err := os.ReadFile(absPath)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
+	for _, s := range sm.turns[turnID] {
+		if s.Path == absPath {
+			return
+		}
+	}
 	snap := FileSnapshot{
 		Path:   absPath,
 		Action: ActionModified,
@@ -78,6 +88,12 @@ func (sm *SnapshotManager) RecordModifyWithNew(turnID, absPath, newContent strin
 	original, err := os.ReadFile(absPath)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
+	for i, s := range sm.turns[turnID] {
+		if s.Path == absPath {
+			sm.turns[turnID][i].NewContent = newContent
+			return
+		}
+	}
 	snap := FileSnapshot{
 		Path:       absPath,
 		Action:     ActionModified,
@@ -93,6 +109,12 @@ func (sm *SnapshotManager) RecordDelete(turnID, absPath string) {
 	original, err := os.ReadFile(absPath)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
+	for i, s := range sm.turns[turnID] {
+		if s.Path == absPath {
+			sm.turns[turnID][i].Action = ActionDeleted
+			return
+		}
+	}
 	snap := FileSnapshot{
 		Path:   absPath,
 		Action: ActionDeleted,
@@ -111,10 +133,12 @@ func (sm *SnapshotManager) GetPendingChanges(turnID string) []FileChange {
 		return nil
 	}
 	var changes []FileChange
+	seen := make(map[string]bool)
 	for _, s := range snaps {
-		if s.Accepted != nil {
+		if s.Accepted != nil || seen[s.Path] {
 			continue
 		}
+		seen[s.Path] = true
 		fc := FileChange{
 			Path:            s.Path,
 			Action:          string(s.Action),
