@@ -128,6 +128,7 @@ func (a *App) OpenProject() (string, error) {
 	a.terminalMu.Unlock()
 	runtime.WindowSetTitle(a.ctx, "Pilot IDE — "+dir)
 	a.persist(a.store.SaveProjectRoot(dir))
+	a.persist(a.store.ClearCurrentSessionID())
 	a.startWatcher(dir)
 	a.addRecentProject(dir)
 	if a.ctx != nil {
@@ -150,6 +151,7 @@ func (a *App) OpenProjectPath(dir string) (string, error) {
 	a.terminalMu.Unlock()
 	runtime.WindowSetTitle(a.ctx, "Pilot IDE — "+dir)
 	a.persist(a.store.SaveProjectRoot(dir))
+	a.persist(a.store.ClearCurrentSessionID())
 	a.startWatcher(dir)
 	a.addRecentProject(dir)
 	if a.ctx != nil {
@@ -499,6 +501,60 @@ func (a *App) ClearChat() {
 	a.chatHistory = nil
 	a.mu.Unlock()
 	a.persist(a.store.ClearMessages())
+	a.persist(a.store.ClearCurrentSessionID())
+}
+
+func (a *App) CreateNewChatSession() (string, error) {
+	if a.projectRoot == "" {
+		return "", fmt.Errorf("no project open")
+	}
+	sessionID, err := a.store.CreateChatSession(a.projectRoot, "New Chat")
+	if err != nil {
+		return "", err
+	}
+	a.mu.Lock()
+	a.chatHistory = nil
+	a.mu.Unlock()
+	a.persist(a.store.SetCurrentSessionID(sessionID))
+	return sessionID, nil
+}
+
+func (a *App) GetChatSessions() ([]store.ChatSession, error) {
+	if a.projectRoot == "" {
+		return nil, nil
+	}
+	return a.store.GetChatSessions(a.projectRoot)
+}
+
+func (a *App) LoadChatSession(sessionID string) ([]ai.Message, error) {
+	messages, err := a.store.LoadChatSession(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	a.mu.Lock()
+	a.chatHistory = messages
+	a.mu.Unlock()
+	a.persist(a.store.SetCurrentSessionID(sessionID))
+	return messages, nil
+}
+
+func (a *App) DeleteChatSession(sessionID string) error {
+	currentSessionID := a.store.GetCurrentSessionID()
+	err := a.store.DeleteChatSession(sessionID)
+	if err != nil {
+		return err
+	}
+	if currentSessionID == sessionID {
+		a.mu.Lock()
+		a.chatHistory = nil
+		a.mu.Unlock()
+		a.persist(a.store.ClearCurrentSessionID())
+	}
+	return nil
+}
+
+func (a *App) RenameChatSession(sessionID, newTitle string) error {
+	return a.store.RenameChatSession(sessionID, newTitle)
 }
 
 var mentionRegex = regexp.MustCompile(`@(?:\[([^\]]+)\]|([a-zA-Z0-9_\-\./\\]+))`)
@@ -586,6 +642,18 @@ func (a *App) Chat(message string) (ai.Reply, error) {
 	history := append([]ai.Message(nil), a.chatHistory...)
 	root := a.projectRoot
 	a.mu.Unlock()
+
+	sessionID := a.store.GetCurrentSessionID()
+	isFirstMessage := len(history) == 0
+
+	if sessionID == "" && root != "" {
+		newSessionID, err := a.store.CreateChatSession(root, "New Chat")
+		if err != nil {
+			return ai.Reply{}, err
+		}
+		sessionID = newSessionID
+		a.persist(a.store.SetCurrentSessionID(sessionID))
+	}
 
 	treeText := ""
 	if root != "" {
@@ -729,9 +797,21 @@ func (a *App) Chat(message string) (ai.Reply, error) {
 	if len(a.chatHistory) > maxChatHistory {
 		a.chatHistory = a.chatHistory[len(a.chatHistory)-maxChatHistory:]
 	}
-	saved := append([]ai.Message(nil), a.chatHistory...)
 	a.mu.Unlock()
-	a.persist(a.store.ReplaceMessages(saved))
+
+	if sessionID != "" {
+		a.persist(a.store.AddMessageToSession(sessionID, "user", text))
+		a.persist(a.store.AddMessageToSession(sessionID, "assistant", reply.Text))
+		a.persist(a.store.UpdateSessionTimestamp(sessionID))
+
+		if isFirstMessage {
+			title := text
+			if len(title) > 50 {
+				title = title[:50] + "..."
+			}
+			a.persist(a.store.RenameChatSession(sessionID, title))
+		}
+	}
 
 	return reply, nil
 }

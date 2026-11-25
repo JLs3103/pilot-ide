@@ -1,5 +1,4 @@
 {
-  "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "pilot-ide",
   "outputfilename": "pilot-ide",
   "frontend:install": "npm install",

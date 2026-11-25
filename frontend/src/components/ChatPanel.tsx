@@ -12,9 +12,15 @@ import {
     AcceptFileChange,
     RejectFileChange,
     MapProjectTree,
+    CreateNewChatSession,
+    GetChatSessions,
+    LoadChatSession,
+    DeleteChatSession,
+    RenameChatSession,
 } from '../../wailsjs/go/main/App';
 import {EventsOn} from '../../wailsjs/runtime/runtime';
 import type {AIStatus, ToolAction, FileChangesEvent, FileChange} from '../types';
+import {store} from '../../wailsjs/go/models';
 import {formatError, reportError} from '../lib/notifications';
 import {
     Send,
@@ -34,6 +40,10 @@ import {
     Cpu,
     ChevronRight,
     FileText,
+    History,
+    Plus,
+    Search,
+    Pencil,
 } from 'lucide-react';
 import {MarkdownRenderer} from './MarkdownRenderer';
 import './ChatPanel.css';
@@ -179,6 +189,12 @@ export function ChatPanel() {
     const [cachedFiles, setCachedFiles] = useState<string[]>([]);
     const [cachedDirs, setCachedDirs] = useState<string[]>([]);
 
+    const [showHistory, setShowHistory] = useState(false);
+    const [chatSessions, setChatSessions] = useState<store.ChatSession[]>([]);
+    const [historySearch, setHistorySearch] = useState('');
+    const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+    const [renameDraft, setRenameDraft] = useState('');
+
     const logRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLDivElement>(null);
     const toolCountRef = useRef(0);
@@ -195,6 +211,65 @@ export function ChatPanel() {
         }
     }, []);
 
+    const loadChatSessions = useCallback(async () => {
+        try {
+            const sessions = await GetChatSessions() as any[];
+            if (Array.isArray(sessions)) {
+                setChatSessions(sessions);
+            } else {
+                setChatSessions([]);
+            }
+        } catch {
+            setChatSessions([]);
+        }
+    }, []);
+
+    async function handleNewChat() {
+        try {
+            await CreateNewChatSession();
+            setMessages([{role: 'system', text: 'New Chat started.'}]);
+            setPendingReviews([]);
+            await loadChatSessions();
+        } catch (error) {
+            reportError('Failed to create new chat session', error);
+        }
+    }
+
+    async function handleLoadSession(sessionId: string) {
+        try {
+            const history = await LoadChatSession(sessionId);
+            const restored = (history ?? [])
+                .filter((m) => m.role === 'user' || m.role === 'assistant')
+                .map((m) => ({role: m.role as 'user' | 'assistant', text: m.content}));
+            setMessages([{role: 'system', text: 'Chat session loaded.'}, ...restored]);
+            setPendingReviews([]);
+            setShowHistory(false);
+        } catch (error) {
+            reportError('Failed to load chat session', error);
+        }
+    }
+
+    async function handleDeleteSession(sessionId: string) {
+        try {
+            await DeleteChatSession(sessionId);
+            await loadChatSessions();
+            setMessages([{role: 'system', text: 'Chat session deleted.'}]);
+        } catch (error) {
+            reportError('Failed to delete chat session', error);
+        }
+    }
+
+    async function handleRenameSession(sessionId: string, newTitle: string) {
+        try {
+            await RenameChatSession(sessionId, newTitle);
+            await loadChatSessions();
+            setRenamingSessionId(null);
+            setRenameDraft('');
+        } catch (error) {
+            reportError('Failed to rename chat session', error);
+        }
+    }
+
     async function refreshStatus() {
         const next = await GetAIStatus() as AIStatus;
         setStatus(next);
@@ -209,6 +284,7 @@ export function ChatPanel() {
             try {
                 const next = await refreshStatus();
                 void loadProjectTree();
+                void loadChatSessions();
                 const history = await GetChatHistory();
                 const restored = (history ?? [])
                     .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -227,7 +303,7 @@ export function ChatPanel() {
                 setMessages([{role: 'error', text: `AI panel unavailable: ${formatError(error)}. You can continue editing files.`}]);
             }
         })();
-    }, [loadProjectTree]);
+    }, [loadProjectTree, loadChatSessions]);
 
     useEffect(() => {
         const offTool = EventsOn('agent:tool', (...data: unknown[]) => {
@@ -810,6 +886,27 @@ export function ChatPanel() {
 
     const unresolvedReviews = pendingReviews.filter(r => !r.resolved);
 
+    const filteredSessions = chatSessions.filter(sess =>
+        sess.Title.toLowerCase().includes(historySearch.toLowerCase())
+    );
+
+    function formatDate(timestamp: number): string {
+        const date = new Date(timestamp * 1000);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            return 'Today';
+        } else if (diffDays === 1) {
+            return 'Yesterday';
+        } else if (diffDays < 7) {
+            return `${diffDays} days ago`;
+        } else {
+            return date.toLocaleDateString();
+        }
+    }
+
     return (
         <aside className="chat-panel">
             <header className="pane-header">
@@ -818,6 +915,30 @@ export function ChatPanel() {
             </header>
 
             <div className="chat-quick-actions">
+                <button
+                    type="button"
+                    className="chat-action-btn"
+                    onClick={() => void handleNewChat()}
+                    disabled={busy}
+                    title="New Chat"
+                >
+                    <Plus size={14} />
+                    <span>New Chat</span>
+                </button>
+                <button
+                    type="button"
+                    className={`chat-action-btn ${showHistory ? 'active' : ''}`}
+                    onClick={() => {
+                        setShowHistory(!showHistory);
+                        if (!showHistory) {
+                            void loadChatSessions();
+                        }
+                    }}
+                    title="Chat History"
+                >
+                    <History size={14} />
+                    <span>History</span>
+                </button>
                 <button
                     type="button"
                     className="chat-action-btn"
@@ -848,6 +969,93 @@ export function ChatPanel() {
                     <span>Settings</span>
                 </button>
             </div>
+
+            {showHistory && (
+                <div className="chat-history-panel">
+                    <div className="chat-history-header">
+                        <span>Chat History</span>
+                    </div>
+                    <div className="chat-history-search">
+                        <Search size={14} className="history-search-icon" />
+                        <input
+                            type="text"
+                            placeholder="Search sessions..."
+                            value={historySearch}
+                            onChange={(e) => setHistorySearch(e.target.value)}
+                            className="history-search-input"
+                        />
+                    </div>
+                    <div className="chat-history-list">
+                        {filteredSessions.length === 0 ? (
+                            <div className="chat-history-empty">
+                                {historySearch ? 'No matching sessions' : 'No chat history yet'}
+                            </div>
+                        ) : (
+                            filteredSessions.map((session) => (
+                                <div key={session.ID} className="chat-history-item">
+                                    {renamingSessionId === session.ID ? (
+                                        <div className="chat-history-rename">
+                                            <input
+                                                type="text"
+                                                value={renameDraft}
+                                                onChange={(e) => setRenameDraft(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        void handleRenameSession(session.ID, renameDraft);
+                                                    } else if (e.key === 'Escape') {
+                                                        setRenamingSessionId(null);
+                                                        setRenameDraft('');
+                                                    }
+                                                }}
+                                                autoFocus
+                                                className="history-rename-input"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleRenameSession(session.ID, renameDraft)}
+                                                className="history-rename-save"
+                                            >
+                                                <Check size={12} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div
+                                                className="chat-history-content"
+                                                onClick={() => void handleLoadSession(session.ID)}
+                                            >
+                                                <div className="chat-history-title">{session.Title}</div>
+                                                <div className="chat-history-date">{formatDate(session.UpdatedAt)}</div>
+                                            </div>
+                                            <div className="chat-history-actions">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setRenamingSessionId(session.ID);
+                                                        setRenameDraft(session.Title);
+                                                    }}
+                                                    className="history-action-btn"
+                                                    title="Rename"
+                                                >
+                                                    <Pencil size={12} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleDeleteSession(session.ID)}
+                                                    className="history-action-btn delete"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
 
             {showSettings && (
                 <div className="chat-settings-panel">

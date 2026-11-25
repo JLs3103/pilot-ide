@@ -34,6 +34,14 @@ export function CreateFolder(arg1) {
   return window['go']['main']['App']['CreateFolder'](arg1);
 }
 
+export function CreateNewChatSession() {
+  return window['go']['main']['App']['CreateNewChatSession']();
+}
+
+export function DeleteChatSession(arg1) {
+  return window['go']['main']['App']['DeleteChatSession'](arg1);
+}
+
 export function DeleteFileOrDir(arg1) {
   return window['go']['main']['App']['DeleteFileOrDir'](arg1);
 }
@@ -52,6 +60,10 @@ export function GetAvailableShells() {
 
 export function GetChatHistory() {
   return window['go']['main']['App']['GetChatHistory']();
+}
+
+export function GetChatSessions() {
+  return window['go']['main']['App']['GetChatSessions']();
 }
 
 export function GetCustomSnippets() {
@@ -162,6 +174,10 @@ export function ListDir(arg1) {
   return window['go']['main']['App']['ListDir'](arg1);
 }
 
+export function LoadChatSession(arg1) {
+  return window['go']['main']['App']['LoadChatSession'](arg1);
+}
+
 export function MapProjectTree(arg1) {
   return window['go']['main']['App']['MapProjectTree'](arg1);
 }
@@ -192,6 +208,10 @@ export function RejectAllFileChanges(arg1) {
 
 export function RejectFileChange(arg1, arg2) {
   return window['go']['main']['App']['RejectFileChange'](arg1, arg2);
+}
+
+export function RenameChatSession(arg1, arg2) {
+  return window['go']['main']['App']['RenameChatSession'](arg1, arg2);
 }
 
 export function RenameFile(arg1, arg2) {

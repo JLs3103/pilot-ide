@@ -360,6 +360,31 @@ export namespace main {
 
 }
 
+export namespace store {
+	
+	export class ChatSession {
+	    ID: string;
+	    ProjectPath: string;
+	    Title: string;
+	    CreatedAt: number;
+	    UpdatedAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ChatSession(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.ProjectPath = source["ProjectPath"];
+	        this.Title = source["Title"];
+	        this.CreatedAt = source["CreatedAt"];
+	        this.UpdatedAt = source["UpdatedAt"];
+	    }
+	}
+
+}
+
 export namespace terminal {
 	
 	export class Result {
